@@ -18,7 +18,9 @@ def _req(method, path, body=None, timeout=8):
     with urllib.request.urlopen(r, timeout=timeout) as res: return json.load(res)
 
 def agent(max_age=60):
-    if _cache['agent'] and time.time() - _cache['at'] < max_age: return _cache['agent']
+    # max_age=0 (start of each call) always re-reads the engine, so a save is audible on the next call
+    # even when this process was idle and still held another assistant.
+    if max_age > 0 and _cache['agent'] and time.time() - _cache['at'] < max_age: return _cache['agent']
     try:
         _cache['agent'] = _req('GET', 'agent'); _cache['at'] = time.time()
     except Exception:

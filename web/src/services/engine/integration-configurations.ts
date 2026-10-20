@@ -25,9 +25,9 @@ export function createIntegrationConfigurations(context: EngineContext) {
       context.assertCurrent(); if (!raw || Object.keys(raw).sort().join(',') !== 'operation,replayed' || typeof raw.replayed !== 'boolean') invalid()
       return parseIntegrationConfigReceipt(raw.operation, a, context.tenantId)
     },
-    async setEnabled(a: IntegrationConfigAttempt) {
+    async setEnabled(a: IntegrationConfigAttempt, options?: { purgeSecrets?: boolean }) {
       context.assertCurrent(); if (!validIntegrationConfigAttempt(a) || a.enabled === undefined) invalid()
-      const raw: any = await context.request('/integrations/action-configurations', { method: 'POST', body: { expectedTenantId: context.tenantId, idempotencyKey: a.key, actionId: a.actionId, expectedRevision: a.expectedRevision, enabled: a.enabled } })
+      const raw: any = await context.request('/integrations/action-configurations', { method: 'POST', body: { expectedTenantId: context.tenantId, idempotencyKey: a.key, actionId: a.actionId, expectedRevision: a.expectedRevision, enabled: a.enabled, ...(options?.purgeSecrets ? { purgeSecrets: true } : {}) } })
       context.assertCurrent(); if (!raw || Object.keys(raw).sort().join(',') !== 'operation,replayed' || typeof raw.replayed !== 'boolean') invalid()
       return parseIntegrationConfigReceipt(raw.operation, a, context.tenantId)
     },

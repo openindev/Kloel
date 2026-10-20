@@ -114,7 +114,7 @@ export function createHttpResourceConnector(context: EngineContext, identity: Ex
         action = await current(reference.id, reference.revision)
         if (reference.timing === 'after' && journal.afterRevision === undefined) await controlAfter(journal, action, false, reference)
         const attempt: IntegrationConfigAttempt = { key: crypto.randomUUID(), actionId: action.id, expectedRevision: action.revision, enabled: false }; journal.attempt = attempt; write(journal)
-        await dispatch(journal, 'attempt', () => config.setEnabled(attempt)); action = await recoverAction(journal)
+        await dispatch(journal, 'attempt', () => config.setEnabled(attempt, { purgeSecrets: true })); action = await recoverAction(journal)
       }
       if (action.enabled) throw Error('A ação ainda não foi desabilitada. Consulte novamente.')
       journal.completed = true; write(journal)

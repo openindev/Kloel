@@ -34,7 +34,7 @@ export type ChatHandling = z.infer<typeof settingsSchema> & { businessHours: Rec
 /** Regras do assistente de chat desta organização; null para assistentes que não são de chat (comportamento anterior). */
 export function chatHandling(store: Store, tenantId: string, agentId: string): ChatHandling | null {
   const state = store.list(tenantId, 'agent-editor-states').find(r => r.agentId === agentId)?.state as Record<string, any> | undefined;
-  if (state?.type !== 'chat') return null;
+  if (state?.type !== 'chat' && state?.type !== 'omni') return null;
   const s = settingsSchema.parse(state.chat), bh = state.businessHours && typeof state.businessHours === 'object' && !Array.isArray(state.businessHours) ? state.businessHours as Record<string, unknown> : null;
   // O fuso vale o do assistente (a tela grava o horário com o fuso de agent.settings.timezone).
   const timezone = (store.get(tenantId, 'agents', agentId)?.settings as Record<string, unknown> | undefined)?.timezone;

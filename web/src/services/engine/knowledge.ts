@@ -7,7 +7,7 @@ export interface KnowledgeEntry {
   createdAt: string; updatedAt: string; indexed: boolean; ingestionStatus: string; chunkCount: number
   embeddingModel: string | null; indexedAt: string | null; url: string | null
   document: { filename: string; mimeType: string; sizeBytes: number } | null
-  extraction: { method: string; ocr: boolean; originalBinaryRetained: boolean | null } | null
+  extraction: { method: string; ocr: boolean; originalBinaryRetained: boolean | null; pageCount?: number } | null
 }
 export interface KnowledgePage { items: KnowledgeEntry[]; page: number; limit: number; total: number; totalPages: number }
 export interface KnowledgeMatch { knowledgeId: string; chunkId: string; title: string; type: string; text: string; score: number; source: KnowledgeSource }
@@ -37,7 +37,7 @@ function parseEntry(raw: unknown, tenantId: string, agentId: string): KnowledgeE
   if (extraction != null && (!object(extraction) || !text(extraction.method, 1, 100) || typeof extraction.ocr !== 'boolean')) invalid()
   if (raw.embeddingModel != null && !text(raw.embeddingModel, 1, 150)) invalid()
   if (raw.indexedAt != null && !Number.isFinite(Date.parse(String(raw.indexedAt)))) invalid()
-  return { id: raw.id, tenantId, agentId, title: raw.title, type: raw.type as KnowledgeType, content: raw.content, tags: raw.tags as string[], createdAt: String(raw.createdAt), updatedAt: String(raw.updatedAt), indexed: raw.indexed, ingestionStatus: raw.ingestionStatus, chunkCount: raw.chunkCount, embeddingModel: raw.embeddingModel as string ?? null, indexedAt: raw.indexedAt as string ?? null, url: url(raw.url), document: object(doc) ? { filename: String(doc.filename), mimeType: String(doc.mimeType), sizeBytes: Number(doc.sizeBytes) } : null, extraction: object(extraction) ? { method: String(extraction.method), ocr: Boolean(extraction.ocr), originalBinaryRetained: typeof extraction.originalBinaryRetained === 'boolean' ? extraction.originalBinaryRetained : null } : null }
+  return { id: raw.id, tenantId, agentId, title: raw.title, type: raw.type as KnowledgeType, content: raw.content, tags: raw.tags as string[], createdAt: String(raw.createdAt), updatedAt: String(raw.updatedAt), indexed: raw.indexed, ingestionStatus: raw.ingestionStatus, chunkCount: raw.chunkCount, embeddingModel: raw.embeddingModel as string ?? null, indexedAt: raw.indexedAt as string ?? null, url: url(raw.url), document: object(doc) ? { filename: String(doc.filename), mimeType: String(doc.mimeType), sizeBytes: Number(doc.sizeBytes) } : null, extraction: object(extraction) ? { method: String(extraction.method), ocr: Boolean(extraction.ocr), originalBinaryRetained: typeof extraction.originalBinaryRetained === 'boolean' ? extraction.originalBinaryRetained : null, ...(count(extraction.pageCount) && extraction.pageCount > 0 ? { pageCount: extraction.pageCount } : {}) } : null }
 }
 function source(raw: unknown, knowledgeId: string): KnowledgeSource {
   if (!object(raw) || raw.knowledgeId !== knowledgeId || !text(raw.title, 1, 200) || !text(raw.type, 1, 100) || !count(raw.chunkIndex) || !count(raw.charStart) || !count(raw.charEnd) || raw.charEnd < raw.charStart || (raw.filename != null && !text(raw.filename, 1, 200)) || (raw.pageNumbers != null && (!Array.isArray(raw.pageNumbers) || raw.pageNumbers.some(page => !count(page) || page < 1)))) invalid()
@@ -47,11 +47,19 @@ function pageShape(raw: unknown, page: number, limit: number): asserts raw is { 
   if (!object(raw) || !Array.isArray(raw.items) || raw.page !== page || raw.limit !== limit || !count(raw.total) || !count(raw.totalPages) || raw.totalPages !== Math.ceil(raw.total / limit) || raw.items.length > limit) invalid()
 }
 
-export const knowledgeFileTypes = { pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json' } as const
+export const knowledgeFileTypes = {
+  pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
+  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', flac: 'audio/flac',
+  mp4: 'video/mp4', webm: 'video/webm', mpeg: 'video/mpeg', mov: 'video/quicktime',
+} as const
 export async function readKnowledgeFile(file: File) {
   const extension = file.name.split('.').pop()?.toLowerCase() as keyof typeof knowledgeFileTypes
-  const mimeType = knowledgeFileTypes[extension]
-  if (!mimeType || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) invalid('Use PDF, TXT, Markdown, CSV ou JSON, de até 10 MiB.')
+  let mimeType: string | undefined = knowledgeFileTypes[extension]
+  if (extension === 'webm' && file.type === 'audio/webm') mimeType = 'audio/webm'
+  if (extension === 'mov' || file.type === 'video/quicktime') mimeType = 'video/quicktime'
+  if (!mimeType || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) invalid('Use documento, imagem, áudio ou vídeo de até 10 MiB (PDF, DOCX, TXT, Markdown, CSV, JSON, PNG, JPG, WEBP, GIF, MP3, WAV, M4A, OGG, WEBM, MP4 ou MOV).')
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
@@ -88,6 +96,14 @@ export function createKnowledgeService(context: EngineContext, agentId: string) 
       const body = draft({ title, content: '', tags }), addressValue = url(address)
       if (!addressValue) invalid('Informe a URL pública da página.')
       const result = parse(await context.request('/knowledge/import-url', { method: 'POST', timeoutMs: 45000, body: { title: body.title, tags: body.tags, url: addressValue, agentId } })); context.assertCurrent(); return result
+    },
+    async generateInfo(sourceId: string) {
+      id(sourceId)
+      const raw = await context.request('/knowledge/generate-info', { method: 'POST', timeoutMs: 60000, body: { agentId, sourceId } })
+      if (!object(raw) || !count(raw.created) || !Array.isArray(raw.items) || !Array.isArray(raw.removedIds)) invalid('Não foi possível confirmar as informações geradas.')
+      const items = raw.items.map(parse)
+      context.assertCurrent()
+      return { created: raw.created, pages: count(raw.pages) ? raw.pages : 0, removedIds: raw.removedIds.filter((value): value is string => typeof value === 'string'), items }
     },
     async upload(title: string, file: File, tags: string[] = []) {
       const body = draft({ title, content: '', tags }), data = await readKnowledgeFile(file); context.assertCurrent()

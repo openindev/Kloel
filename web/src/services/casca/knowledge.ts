@@ -17,6 +17,11 @@ function publish(context: EngineContext, row: KnowledgeEntry) {
   }
 }
 
+export function mediaUploadSlot(file: { name: string; size: number; lastModified: number }) {
+  const name = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_').slice(0, 60) || 'midia'
+  return `media:${name}:${file.size}:${Number.isFinite(file.lastModified) ? file.lastModified : 0}`
+}
+
 /** Actual import/extraction/indexing APIs. Storage contains only context and entry identifiers. */
 export function knowledgeCommands(agentId: string, slot = 'create') {
   const context = captureEngineContext('knowledge:write'), expected = engineSession.getSnapshot().data!.identity.context
@@ -50,10 +55,18 @@ export function createKnowledgeCommands(context: EngineContext, expected: Expect
     write(null)
     return row
   }
-  async function create(start: () => Promise<KnowledgeEntry>) {
+  async function create(start: () => Promise<KnowledgeEntry>, reindex = false) {
     context.assertCurrent()
     if (working.has(key)) throw Error('Aguarde a importação em andamento.')
-    if (read()) return consult()
+    const pending = read()
+    if (pending) {
+      if (reindex && pending.entryId) {
+        try { await api.ingest(pending.entryId) } catch (error) {
+          if (error instanceof EngineError && error.status >= 400 && error.status < 500 && error.status !== 409 && error.status !== 429) throw Error(`O conteúdo foi importado, mas a indexação falhou: ${error.message}`)
+        }
+      }
+      return consult()
+    }
     working.add(key)
     try {
       write({ context: expected, entryId: null })
@@ -67,12 +80,10 @@ export function createKnowledgeCommands(context: EngineContext, expected: Expect
       write({ context: expected, entryId: row.id }); publishRow(context, row)
       let ingestError: unknown
       try { await api.ingest(row.id) } catch (error) { ingestError = error /* GET is the only recovery from an uncertain indexing response. */ }
-      const result = await consult()
-      if (ingestError instanceof EngineError && ingestError.status >= 400 && ingestError.status < 500) {
-        write(null)
+      if (ingestError instanceof EngineError && ingestError.status >= 400 && ingestError.status < 500 && ingestError.status !== 409 && ingestError.status !== 429) {
         throw Error(`O conteúdo foi importado, mas a indexação falhou: ${ingestError.message}`)
       }
-      return result
+      return consult()
     } finally { working.delete(key) }
   }
   return {
@@ -86,9 +97,23 @@ export function createKnowledgeCommands(context: EngineContext, expected: Expect
       if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || address.length > 200) throw Error('Informe uma URL pública de até 200 caracteres.')
       return create(() => api.importUrl(address, url.href))
     },
+    async generate(sourceId: string) {
+      if (working.has(key)) throw Error('Aguarde a operação atual.')
+      working.add(key)
+      try {
+        const result = await api.generateInfo(sourceId)
+        const st = useStore.getState()
+        for (const id of result.removedIds) st.remove('knowledgeEntries', id)
+        for (const item of result.items) {
+          publishRow(context, item)
+          try { await api.ingest(item.id) } catch { /* o texto fica salvo; a busca vetorial depende da indexação */ }
+        }
+        return result.created
+      } finally { working.delete(key) }
+    },
     upload: (title: string, file: File) => {
       if (!title.trim() || title.length > 200 || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) throw Error('Este envio aceita documento de até 10 MiB e nome de até 200 caracteres.')
-      return create(() => api.upload(title, file))
+      return create(() => api.upload(title, file), true)
     },
     async update(entryId: string, title: string, content: string) {
       if (working.has(key)) throw Error('Aguarde o salvamento atual.')

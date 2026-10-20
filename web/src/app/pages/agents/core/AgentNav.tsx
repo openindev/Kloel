@@ -36,9 +36,10 @@ function useConnectionLabel() {
   const numbers = useCollection('phoneNumbers')
   const wa = useCollection('whatsappAccounts')
   return (a: Agent) => {
-    if (a.type === 'chat') {
+    if (a.type !== 'voice') {
       const acc = wa.find((w) => w.agentId === a.id)
       if (acc) return acc.number
+      if (a.type === 'chat') return 'Nenhum número de WhatsApp conectado'
     }
     const nums = numbers.filter((n) => n.agentId === a.id)
     if (!nums.length) return 'Nenhum número de telefone conectado'

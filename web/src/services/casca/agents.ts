@@ -80,10 +80,12 @@ export function parseEditorView(raw: unknown, tenantId: string, agentId?: string
 export function projectAgent(a: EngineAgent, view?: Pick<EditorView, 'state' | 'revision' | 'agentVersion'>, generation = 0): Agent {
   const s = (view?.state ?? {}) as Partial<Agent>, technical = defaultTechnical()
   technical.preciseExtraction = []
-  const type: AgentType = s.type === 'chat' ? 'chat' : 'voice'
+  const type: AgentType = s.type === 'chat' ? 'chat' : s.type === 'omni' ? 'omni' : 'voice'
   const voiceId = s.voiceId && Object.hasOwn(voiceProviderMap, s.voiceId) ? s.voiceId : a.voice === 'alloy' ? 'marcelo' : 'joana'
-  const result: Agent = { id: a.id, orgId: a.tenantId, name: a.name, type, channels: type === 'voice' ? ['phone'] : ['whatsapp','webchat'], voiceId, language: a.language, greeting: a.initialMessage, greetingPersonalized: false, greetingMode: 'auto', greetingRules: [], contactsEnabled: a.tools.includes('lookup_contact'), transfers: [], emails: [], whatsapps: [], scheduling: [], webSearch: { enabled: false, instruction: '', allowedDomains: [] }, integrations: [], webhooks: [], rules: { ...defaultRules(), custom: a.rules.map((r, i) => ({ id: `runtime_${i}`, active: r.enabled, title: r.name, condition: '', instruction: r.instruction })) }, knowledgeBaseEnabled: a.tools.includes('search_knowledge'), companyInfo: '', businessHours: defaultBusinessHours(), prompt: a.prompt, technical, ...structuredClone(s), createdAt: a.createdAt, updatedAt: a.updatedAt }
-  result.id = a.id; result.orgId = a.tenantId; result.name = a.name; result.prompt = a.prompt; result.greeting = a.initialMessage; result.language = a.language; result.voiceId = voiceId
+  const channels = type === 'voice' ? ['phone'] as const : type === 'omni' ? ['phone', 'whatsapp', 'webchat'] as const : ['whatsapp', 'webchat'] as const
+  const result: Agent = { id: a.id, orgId: a.tenantId, name: a.name, type, channels: [...channels], voiceId, language: a.language, greeting: a.initialMessage, greetingPersonalized: false, greetingMode: 'auto', greetingRules: [], contactsEnabled: a.tools.includes('lookup_contact'), transfers: [], emails: [], whatsapps: [], scheduling: [], webSearch: { enabled: false, instruction: '', allowedDomains: [] }, integrations: [], webhooks: [], rules: { ...defaultRules(), custom: a.rules.map((r, i) => ({ id: `runtime_${i}`, active: r.enabled, title: r.name, condition: '', instruction: r.instruction })) }, knowledgeBaseEnabled: a.tools.includes('search_knowledge'), companyInfo: '', businessHours: defaultBusinessHours(), prompt: a.prompt, technical, ...structuredClone(s), createdAt: a.createdAt, updatedAt: a.updatedAt }
+  result.id = a.id; result.orgId = a.tenantId; result.name = a.name; result.type = type; result.prompt = a.prompt; result.greeting = a.initialMessage; result.language = a.language; result.voiceId = voiceId
+  if (type === 'omni') result.channels = ['phone', 'whatsapp', 'webchat']
   result.technical = { ...technical, ...s.technical, temperature: a.settings.temperature, recordAudio: a.settings.recordingEnabled }
   result.businessHours = { ...defaultBusinessHours(), ...s.businessHours, timezone: a.settings.timezone }
   result.contactsEnabled = a.tools.includes('lookup_contact'); result.knowledgeBaseEnabled = a.tools.includes('search_knowledge')
@@ -128,6 +130,13 @@ export function createAgentJournal(storage: StoragePort, input: ExpectedContext,
 }
 export function createAgentCommands(context: EngineContext, journal?: ReturnType<typeof createAgentJournal>) {
   async function read(agentId: string): Promise<Agent> { if (!id(agentId)) invalid(); context.assertCurrent(); const raw = await context.request(`/agents/${agentId}/editor-state`); context.assertCurrent(); const v = parseEditorView(raw, context.tenantId, agentId); return projectAgent(v.agent, v, context.generation) }
+  /** Re-read the fence when this tab's copy was projected in another session generation or never received one. The caller's fields stay; only revision, version and runtime tools come from the server. */
+  async function editorFence(base: Agent): Promise<Agent> {
+    if (base.cascaEditor?.generation === context.generation) return base
+    const fresh = await read(base.id)
+    if (fresh.orgId !== context.tenantId || !fresh.cascaEditor || fresh.cascaEditor.generation !== context.generation) invalid('Não foi possível confirmar o assistente. Atualize a página antes de salvar.')
+    return { ...base, cascaEditor: fresh.cascaEditor, runtimeStatus: fresh.runtimeStatus }
+  }
   async function recover(attempt: AgentAttempt): Promise<Agent> { context.assertCurrent(); const op = parseEditorOperation(await context.request(`/agents/editor-state/operations/${attempt.key}`), context.tenantId, attempt); context.assertCurrent(); try { const a = await read(op.agentId); journal?.resolve(attempt, context.assertCurrent); return a } catch (error) { context.assertCurrent(); if (error instanceof EngineError && error.status === 404) { journal?.resolve(attempt, context.assertCurrent); throw new EngineError(404, 'agent_deleted_after_write', `O salvamento foi confirmado pela referência ${attempt.key}, mas o assistente foi excluído depois.`) } throw error } }
   async function write(attempt: AgentAttempt, path: string, body: unknown, method: 'PUT' | 'POST'): Promise<Agent> {
     context.assertCurrent(); const active = journal?.read(); if (active) return recover(active)
@@ -137,7 +146,18 @@ export function createAgentCommands(context: EngineContext, journal?: ReturnType
   }
   return { read, recover,
     async create(input: Agent) { assertNewBeforeConfiguration(input); assertExecutableNewAgentSettings(input); assertExecutableResourceChanges({ transfers: [], emails: [], whatsapps: [] }, input); if (input.orgId !== context.tenantId) invalid(); const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.create', expectedRevision: 0 }, fields: AgentFields = { name: input.name, prompt: input.prompt, initialMessage: input.greeting, language: input.language, voice: providerVoice(input.voiceId), status: 'draft', settings: { temperature: input.technical.temperature, maxResponseTokens: 1024, timezone: input.businessHours.timezone, recordingEnabled: input.technical.recordAudio, humanHandoffEnabled: true }, tools: [...(input.knowledgeBaseEnabled ? ['search_knowledge' as const] : []), ...(input.contactsEnabled ? ['lookup_contact' as const] : []), ...(input.webSearch.enabled ? ['search_web' as const] : [])], rules: compileAgentRules(input) }; agentPayload(fields); return write(attempt, '/agents/editor-state', { expectedTenantId: context.tenantId, idempotencyKey: attempt.key, agent: fields, state: editorState(input as unknown as Record<string, unknown>) }, 'POST') },
-    async update(base: Agent, patch: Partial<Agent>) { assertExecutableResourceChanges(base, patch); assertExecutableAgentSettings(base, patch); const meta = base.cascaEditor; if (base.orgId !== context.tenantId || !meta || meta.generation !== context.generation) invalid('Atualize o assistente antes de salvar.'); const next = { ...base, ...patch }, runtime = runtimePatch(base, next); delete (next as Partial<Agent>).runtimeStatus; if (Object.keys(runtime).length) agentPayload(runtime); const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.update', agentId: base.id, expectedRevision: meta.revision }; return write(attempt, `/agents/${base.id}/editor-state`, { expectedTenantId: context.tenantId, expectedRevision: meta.revision, expectedAgentVersion: meta.agentVersion, idempotencyKey: attempt.key, agent: runtime, state: editorState(next as unknown as Record<string, unknown>) }, 'PUT') },
+    async update(base: Agent, patch: Partial<Agent>) {
+      assertExecutableResourceChanges(base, patch); assertExecutableAgentSettings(base, patch)
+      // The editor fence (cascaEditor) is not stored. It is stamped only when this tab projects GET /editor-state.
+      // A dirty draft keeps the first object, so a missing or older generation used to throw before any request.
+      if (base.orgId !== context.tenantId) invalid('A organização da sessão mudou. Abra o assistente de novo antes de salvar.')
+      const current = await editorFence(base)
+      const meta = current.cascaEditor!
+      const next = { ...current, ...patch }, runtime = runtimePatch(current, next); delete (next as Partial<Agent>).runtimeStatus
+      if (Object.keys(runtime).length) agentPayload(runtime)
+      const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.update', agentId: base.id, expectedRevision: meta.revision }
+      return write(attempt, `/agents/${base.id}/editor-state`, { expectedTenantId: context.tenantId, expectedRevision: meta.revision, expectedAgentVersion: meta.agentVersion, idempotencyKey: attempt.key, agent: runtime, state: editorState(next as unknown as Record<string, unknown>) }, 'PUT')
+    },
     async remove(agentId: string) { if (!id(agentId)) invalid(); context.assertCurrent(); try { await context.request(`/agents/${agentId}`, { method: 'DELETE' }); context.assertCurrent() } catch (error) { context.assertCurrent(); try { await read(agentId) } catch (readError) { context.assertCurrent(); if (readError instanceof EngineError && readError.status === 404) return } throw error } },
   }
 }
@@ -147,12 +167,18 @@ export function createManagedAgentCommands(context: EngineContext, journal: Retu
   return { ...commands, async update(base: Agent, patch: Partial<Agent>) {
     assertExecutableResourceChanges(base, patch)
     assertExecutableAgentSettings(base, patch)
-    const saveBefore = await prepare(base, { ...base, ...patch })
+    if (base.orgId !== context.tenantId) invalid('A organização da sessão mudou. Abra o assistente de novo antes de salvar.')
+    // Greeting / inbound webhook checks use the same generation stamp. Refresh it before they can refuse the save.
+    const current = !base.cascaEditor || base.cascaEditor.generation !== context.generation ? await commands.read(base.id).then(fresh => {
+      if (fresh.orgId !== context.tenantId || !fresh.cascaEditor || fresh.cascaEditor.generation !== context.generation) invalid('Não foi possível confirmar o assistente. Atualize a página antes de salvar.')
+      return { ...base, cascaEditor: fresh.cascaEditor, runtimeStatus: fresh.runtimeStatus, engineBefore: base.engineBefore ?? fresh.engineBefore }
+    }) : base
+    const saveBefore = await prepare(current, { ...current, ...patch })
     if (saveBefore) {
       const pending = journal.read()
       if (pending) { await commands.recover(pending); throw Error('O salvamento anterior foi confirmado. Atualize o assistente antes de aplicar novas alterações.') }
     }
-    const saved = await commands.update(base, patch)
+    const saved = await commands.update(current, patch)
     if (saveBefore) {
       try { await saveBefore() }
       catch (error) { context.assertCurrent(); throw Error(`O assistente foi salvo, mas não foi possível confirmar toda a configuração inicial. Atualize para conferir. ${error instanceof Error ? error.message : ''}`) }
@@ -187,8 +213,13 @@ export async function saveAgentFields(base: Agent, patch: Partial<Agent>): Promi
 export async function loadAgents(context: EngineContext): Promise<Agent[]> { const userId = engineSession.getSnapshot().data?.identity.context.userId; context.assertCurrent(); if (!userId) invalid('Abra sua sessão novamente.'); const list = await createAgentService(context).list(), commands = createAgentCommands(context), out = await Promise.all(list.map(agent => commands.read(agent.id))); context.assertCurrent(); return hydrateAgentResources(context, out, userId) }
 
 export function projectKnowledge(k: EngineKnowledge): { entry: KnowledgeEntry; source?: KnowledgeSource } {
-  const source = k.type === 'url' ? 'website' : k.type === 'document' ? 'document' : 'manual'
-  return { entry: { id: k.id, orgId: k.tenantId, agentId: k.agentId, question: k.title, answer: k.content, source, sourceLabel: k.title, ...(source === 'manual' ? {} : { sourceId: k.id }), usageCount: 0, createdAt: k.createdAt }, ...(source === 'manual' ? {} : { source: { id: k.id, orgId: k.tenantId, agentId: k.agentId, type: source, label: k.title, ...(k.url ? { url: k.url.replace(/^https?:\/\//, ''), pages: 1 } : {}), ...(k.document ? { fileName: k.document.filename, sizeBytes: k.document.sizeBytes } : {}), status: k.indexed ? 'ready' : k.ingestionStatus === 'failed' ? 'error' : 'processing', enabled: k.indexed, updatedAt: k.updatedAt } as KnowledgeSource }) }
+  const auto = k.tags.includes('auto')
+  const source = auto ? 'auto' : k.type === 'url' ? 'website' : k.type === 'document' ? 'document' : 'manual'
+  const origin = k.tags.find(tag => tag.startsWith('origem:'))?.slice(7)
+  const category = k.tags.find(tag => !['auto', origin && `origem:${origin}`].includes(tag) && !tag.startsWith('from:') && !tag.startsWith('origem:'))
+  const label = source === 'auto' ? [category, origin].filter(Boolean).join(' · ') : k.title
+  const pages = k.extraction?.pageCount
+  return { entry: { id: k.id, orgId: k.tenantId, agentId: k.agentId, question: k.title, answer: k.content, source, sourceLabel: label || k.title, ...(source === 'manual' || source === 'auto' ? {} : { sourceId: k.id }), usageCount: 0, createdAt: k.createdAt }, ...(source === 'website' || source === 'document' ? { source: { id: k.id, orgId: k.tenantId, agentId: k.agentId, type: source, label: k.title, ...(k.url ? { url: k.url.replace(/^https?:\/\//, ''), pages: pages && pages > 0 ? pages : 1 } : {}), ...(k.document ? { fileName: k.document.filename, sizeBytes: k.document.sizeBytes } : {}), status: k.indexed ? 'ready' : k.ingestionStatus === 'failed' ? 'error' : 'processing', enabled: k.indexed, updatedAt: k.updatedAt } as KnowledgeSource } : {}) }
 }
 export async function loadKnowledge(context: EngineContext, agentIds: string[]) { const knowledgeEntries: KnowledgeEntry[] = [], knowledgeSources: KnowledgeSource[] = []; const perAgent = await Promise.all(agentIds.map(async agentId => { const api = createKnowledgeService(context, agentId), items: EngineKnowledge[] = []; for (let page = 1; page <= 10000; page++) { const result = await api.list(page); items.push(...result.items); if (page >= result.totalPages) break; if (page === 10000) invalid('A base de conhecimento excede o limite desta consulta.') } return items })); for (const k of perAgent.flat()) { const p = projectKnowledge(k); knowledgeEntries.push(p.entry); if (p.source) knowledgeSources.push(p.source) } context.assertCurrent(); return { knowledgeEntries, knowledgeSources } }
 

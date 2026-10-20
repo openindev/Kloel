@@ -18,7 +18,12 @@ export async function saveHttpResourceFields(base: Agent, patch: Partial<Agent>)
   if ([...changedHooks, ...removedHooks].some(row => row.kind !== 'http_request')) throw Error('Este contexto ainda não pode ser salvo nesta conexão. Nenhuma configuração foi alterada.')
   const context = captureEngineContext('integrations:manage')
   const userId = engineSession.getSnapshot().data!.identity.context.userId
-  if (context.tenantId !== base.orgId || context.generation !== base.cascaEditor?.generation) throw Error('A sessão mudou. Abra o assistente novamente.')
+  if (context.tenantId !== base.orgId) throw Error('A organização da sessão mudou. Abra o assistente de novo antes de salvar.')
+  if (context.generation !== base.cascaEditor?.generation) {
+    const fresh = await agentCommands(base.id).read(base.id)
+    if (fresh.orgId !== context.tenantId || fresh.cascaEditor?.generation !== context.generation) throw Error('Não foi possível confirmar o assistente. Atualize a página antes de salvar.')
+    base = { ...base, cascaEditor: fresh.cascaEditor, runtimeStatus: fresh.runtimeStatus, engineBefore: base.engineBefore ?? fresh.engineBefore }
+  }
   const acknowledgements: (() => void)[] = []; let changed = false
   try {
     for (const row of changedHooks) {
@@ -27,7 +32,10 @@ export async function saveHttpResourceFields(base: Agent, patch: Partial<Agent>)
       Object.assign(row, projectHttpAction(saved.action, saved.reference, row)); acknowledgements.push(api.acknowledge)
     }
     for (const row of changedIntegrations) {
-      const webhook: WebhookConfig = { id: row.id, kind: 'http_request', name: row.name, description: row.description, enabled: true, timing: row.timing, activeWindow: row.activeWindow, url: row.config.webhookUrl, method: 'POST' }
+      const timeoutRaw = row.config.timeoutMs?.trim()
+      const timeoutMs = timeoutRaw ? Number(timeoutRaw) : undefined
+      if (timeoutMs !== undefined && (!Number.isInteger(timeoutMs) || timeoutMs < 500 || timeoutMs > 15000)) throw Error('O tempo limite deve ficar entre 500 e 15000 ms.')
+      const webhook: WebhookConfig = { id: row.id, kind: 'http_request', name: row.name, description: row.description, enabled: true, timing: row.timing, activeWindow: row.activeWindow, url: row.config.webhookUrl, method: 'POST', ...(timeoutMs ? { timeoutMs } : {}) }
       const configuration = httpConfigurationFor(base, webhook, row.integration as 'n8n' | 'make' | 'zapier', true), api = httpResourceConnector(base.id, row.id)
       const saved = await api.save(configuration, row.timing as 'during' | 'after', row.engineBinding?.kind === 'http' ? row.engineBinding : undefined); changed = true
       row.engineBinding = saved.reference; row.config = {}; row.connected = saved.action.status === 'endpoint_acknowledged'; acknowledgements.push(api.acknowledge)

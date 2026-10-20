@@ -37,8 +37,9 @@ test('registered actions expose only bound schema and execute with durable resul
 
 test('anonymous, unassigned, disabled, revised or revoked action capabilities cannot reuse cached integrations', async t => {
   const f = fixture(t);
-  assert.deepEqual(agentRuntimeTools(f.store, { ...f.context, trustedOperator: false }), []);
-  assert.equal((await executeAgentTool(f.store, { ...f.context, trustedOperator: false }, f.call, { integrationTransport: f.transport })).error, 'tool_not_enabled');
+  const visitorTools = agentRuntimeTools(f.store, { ...f.context, trustedOperator: false, actor: undefined });
+  assert.equal(visitorTools.some(tool => tool.name === f.call.name), true);
+  assert.equal((await executeAgentTool(f.store, { ...f.context, trustedOperator: false, actor: undefined }, { ...f.call, id: 'visitor' }, { integrationTransport: f.transport })).ok, true);
   assert.equal((await executeAgentTool(f.store, f.context, f.call, { integrationTransport: f.transport })).ok, true);
   f.store.update('tenant-a', 'integration-actions', f.action.id, { enabled: false });
   assert.equal((await executeAgentTool(f.store, f.context, f.call, { integrationTransport: f.transport })).error, 'tool_not_enabled');
@@ -48,7 +49,7 @@ test('anonymous, unassigned, disabled, revised or revoked action capabilities ca
   assert.equal((await executeAgentTool(f.store, f.context, f.call, { integrationTransport: f.transport })).error, 'tool_call_id_conflict');
   f.store.db.prepare('DELETE FROM sessions').run();
   assert.equal((await executeAgentTool(f.store, f.context, f.call, { integrationTransport: f.transport })).error, 'operator_session_revoked');
-  assert.equal(f.deliveries(), 1);
+  assert.equal(f.deliveries(), 2);
 });
 
 test('another valid operator cannot read the original operator cached integration result', async t => {

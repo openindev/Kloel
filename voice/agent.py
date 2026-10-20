@@ -210,6 +210,14 @@ def _log_sip_debug(ctx):
 
 
 @function_tool()
+async def chamar_integracao(context: RunContext, nome: str, argumentos_json: str = '{}') -> dict:
+    """Chama uma integração deste assistente (n8n ou Personalizar: pedido, Pix, boleto, link de pagamento, fila). Nunca envie número de cartão nem CVV."""
+    import asyncio as _a
+    r = await _a.to_thread(engine_client.safe, 'POST', 'tool', {'name': nome, 'arguments': argumentos_json}, 20)
+    return r or {'ok': False, 'reason': 'indisponivel'}
+
+
+@function_tool()
 async def verificar_whatsapp(context: RunContext) -> dict:
     """Verifica se já chegou mensagem no WhatsApp oficial da Kloel vinda do número desta ligação."""
     import asyncio as _a
@@ -499,7 +507,7 @@ async def entrypoint(ctx: agents.JobContext):
     wa_status, call, instructions = await asyncio.gather(
         asyncio.to_thread(engine_client.safe, 'POST', 'whatsapp/status', {'phone': phone}) if phone else asyncio.sleep(0, None),
         asyncio.to_thread(engine_client.safe, 'POST', 'calls', {'room': ctx.job.room.name, 'direction': direction, **({'externalContact': phone} if phone else {})}),
-        asyncio.to_thread(engine_client.agent))
+        asyncio.to_thread(engine_client.agent, 0))
     if (call or {}).get('blocked'):
         log.info('caller_blocked_hangup')
         try: ctx.shutdown(reason='contact_blocked')
@@ -517,6 +525,11 @@ async def entrypoint(ctx: agents.JobContext):
         instructions += '\nTransferência: quando a pessoa pedir para falar com alguém ou o caso exigir, avise que vai transferir e chame transferir_ligacao. Destinos: ' + '; '.join(f"{t.get('label')}: {t.get('description') or ''}" for t in TRANSFER['targets']) + ('. Também pode transferir para um número que a pessoa informar.' if TRANSFER['free'] else '.')
     if tech.get('recordAudio'):
         instructions += '\nEsta ligação é gravada: informe isso brevemente na saudação inicial.' + (' Se a pessoa não autorizar a gravação, chame recusar_gravacao.' if tech.get('autoDeleteOnRefusal') else '')
+    http_tools = cfg.get('httpTools') or []
+    commercial = cfg.get('commercial') or {}
+    if http_tools or commercial.get('enabled'):
+        names = [tool.get('name') for tool in http_tools] + (['comercial_acao'] if commercial.get('enabled') else [])
+        instructions += '\nIntegrações: durante a ligação chame chamar_integracao. Ferramentas: ' + ', '.join(names) + '. ' + str(commercial.get('rules') or '') + ' Nunca peça nem repita número de cartão ou CVV. Para cartão, use comercial_acao com acao comercial_link e mande o link no WhatsApp.'
     WA['window'] = bool((wa_status or {}).get('window24h'))
     log.info('whatsapp_window_at_start=%s', WA['window'])
     call_id = (call or {}).get('conversationId')
@@ -555,7 +568,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     await session.start(
         room=ctx.room,
-        agent=Agent(instructions=instructions, tools=[*backend_tools(), *(() if routed else (agendar_demo, registrar_lead)), encerrar_ligacao, consultar_conhecimento, verificar_whatsapp, enviar_whatsapp, *((send_dtmf_events,) if tech.get('dtmf') else ()), *((transferir_ligacao,) if (cfg.get('transfers') or tech.get('freeTransfer')) else ()), *((recusar_gravacao,) if (tech.get('recordAudio') and tech.get('autoDeleteOnRefusal')) else ()), *((enviar_email,) if EMAILS['during'] else ())]),
+        agent=Agent(instructions=instructions, tools=[*backend_tools(), *(() if routed else (agendar_demo, registrar_lead)), encerrar_ligacao, consultar_conhecimento, verificar_whatsapp, enviar_whatsapp, *((chamar_integracao,) if (cfg.get('httpTools') or (cfg.get('commercial') or {}).get('enabled')) else ()), *((send_dtmf_events,) if tech.get('dtmf') else ()), *((transferir_ligacao,) if (cfg.get('transfers') or tech.get('freeTransfer')) else ()), *((recusar_gravacao,) if (tech.get('recordAudio') and tech.get('autoDeleteOnRefusal')) else ()), *((enviar_email,) if EMAILS['during'] else ())]),
         record=False,
         room_options=room_io.RoomOptions(
             audio_input=True, audio_output=True, video_input=False,

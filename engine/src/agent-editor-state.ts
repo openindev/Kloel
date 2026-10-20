@@ -68,7 +68,7 @@ export async function registerAgentEditorState(app:FastifyInstance,store:Store) 
       const patch=body.agent,allowed=new Set(Object.keys(agentSchema.shape));
       if(Object.keys(patch).some(key=>!allowed.has(key)))fail('invalid_patch',400);
       const data=agentSchema.parse(prior?mergePatch(editable(prior),patch):patch);
-      if(data.status==='active'&&prior?.status!=='active'&&!canActivateAgent(store,a.tenantId))fail('plan_required',402);
+      if(data.status==='active'&&prior?.status!=='active'&&!canActivateAgent(store,a.tenantId))throw new DomainError(402,'plan_required','Assine um plano para ativar o assistente.');
       requireRecordingPermission(store,request,'agents',data,prior);
       let agent:Entity;
       if(!prior)agent=store.create(a.tenantId,'agents',data);

@@ -18,7 +18,8 @@ import { FieldError, OpProgress } from './ui'
 
 export const SITE_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/.*)?$/i
 export const normalizeSite = (url: string) => url.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
-export const MAX_PDF = 20 * 1024 * 1024
+export const MAX_MEDIA = 10 * 1024 * 1024
+const MEDIA_EXT = /\.(pdf|txt|md|csv|json|docx|png|jpe?g|webp|gif|mp3|wav|m4a|ogg|flac|mp4|webm|mpeg|mov)$/i
 
 export function formatBytes(n?: number) {
   if (!n && n !== 0) return ''
@@ -146,26 +147,28 @@ export function DocumentSheet({ agent, open, onOpenChange }: { agent: Agent; ope
   async function pick(f: File | undefined) {
     if (!f) return
     setError(undefined)
-    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') {
+    if (!MEDIA_EXT.test(f.name)) {
       setFile(null)
-      return setError('No momento, apenas arquivos PDF podem ser enviados.')
+      return setError('Envie PDF, DOCX, TXT, Markdown, CSV, JSON, imagem, áudio ou vídeo.')
     }
-    if (f.size > MAX_PDF) {
+    if (f.size > MAX_MEDIA) {
       setFile(null)
-      return setError(`O tamanho máximo do arquivo é 20 MB (arquivo selecionado: ${formatBytes(f.size)}).`)
+      return setError(`O tamanho máximo do arquivo é 10 MB (arquivo selecionado: ${formatBytes(f.size)}).`)
     }
-    const problem = await inspectPdf(f)
-    if (problem) {
-      setFile(null)
-      return setError(problem)
+    if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+      const problem = await inspectPdf(f)
+      if (problem) {
+        setFile(null)
+        return setError(problem)
+      }
     }
     setFile(f)
-    if (!name.trim()) setName(f.name.replace(/\.pdf$/i, ''))
+    if (!name.trim()) setName(f.name.replace(/\.[^.]+$/, ''))
   }
 
   async function submit() {
     if (!file) return
-    if (!name.trim()) return setNameError('O nome do documento é obrigatório.')
+    if (!name.trim()) return setNameError('O nome da mídia é obrigatório.')
     finishDoc(await op.run(file, name.trim()), file.name)
   }
 
@@ -179,17 +182,17 @@ export function DocumentSheet({ agent, open, onOpenChange }: { agent: Agent; ope
     <SideSheet
       open={open}
       onOpenChange={(o) => !op.isRunning && onOpenChange(o)}
-      title="Enviar documento"
+      title="Enviar mídia"
       // [556]: o painel de documento é mais estreito (560px) que o padrão de 576px
       width={560}
       onSave={submit}
-      saveLabel={op.isRunning ? 'Enviando…' : 'Enviar documento'}
+      saveLabel={op.isRunning ? 'Enviando…' : 'Enviar mídia'}
       saveDisabled={!file || !name.trim() || op.isRunning}
     >
       {/* espaçamentos da captura [556]: rótulo → campo → aviso (12px) → "Selecionar documento" */}
       <div className="-mt-0.5 flex flex-col gap-3">
         <div className="grid gap-2">
-          <Label htmlFor="doc-name">Nome do documento</Label>
+          <Label htmlFor="doc-name">Nome da mídia</Label>
           <Input
             id="doc-name"
             autoFocus
@@ -205,12 +208,12 @@ export function DocumentSheet({ agent, open, onOpenChange }: { agent: Agent; ope
         <div className="rounded-xl border p-5 text-sm leading-5 text-orange-600">
           <p className="font-semibold">Importante:</p>
           <ul className="mt-1 list-disc pl-4">
-            <li>O tamanho máximo do arquivo é 20 MB.</li>
-            <li>No momento, apenas arquivos PDF podem ser enviados.</li>
-            <li>O texto no PDF precisa poder ser copiado — arquivos só com imagem (documentos escaneados) não serão processados.</li>
+            <li>O tamanho máximo do arquivo é 10 MB.</li>
+            <li>Aceita documentos (PDF, DOCX, TXT, Markdown, CSV, JSON), imagens, áudio e vídeo.</li>
+            <li>PDF escaneado sem texto selecionável não é lido. Envie a página como imagem para extrair o texto.</li>
           </ul>
         </div>
-        <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" data-testid="document-file" onChange={(e) => void pick(e.target.files?.[0] ?? undefined).finally(() => (e.target.value = ''))} />
+        <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv,.json,.docx,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.mov,.mpeg,application/pdf,text/plain,image/*,audio/*,video/*" className="hidden" data-testid="document-file" onChange={(e) => void pick(e.target.files?.[0] ?? undefined).finally(() => (e.target.value = ''))} />
         {file ? (
           <div className="flex items-center gap-3 rounded-lg border p-3">
             <FileText className="size-5 shrink-0 text-muted-foreground" />
@@ -227,7 +230,7 @@ export function DocumentSheet({ agent, open, onOpenChange }: { agent: Agent; ope
           </div>
         ) : (
           <button type="button" className="self-start text-sm text-blue-500 hover:underline" onClick={() => fileRef.current?.click()}>
-            Selecionar documento
+            Selecionar mídia
           </button>
         )}
         <FieldError>{error}</FieldError>

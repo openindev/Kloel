@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Store } from './store.js';
 import { DomainError } from './domains.js';
 import { extractPdf } from './ingestion/pdf.js';
+import { describeMedia, docxText, MEDIA_MIME } from './media-extract.js';
 import { fetchPublicUrl, type UrlOptions } from './ingestion/safe-url.js';
 import { renderSite } from './ingestion/render.js';
 import { requireRequestPermission } from './memberships/access.js';
@@ -13,7 +14,7 @@ import { MembershipError } from './memberships/service.js';
 const limit = 10 * 1024 * 1024;
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 const metadata = z.object({ title: z.string().trim().min(1).max(200), agentId: z.string().min(1).max(128).nullable().optional(), tags: z.array(z.string().min(1).max(80)).max(50).default([]) });
-const uploadSchema = metadata.extend({ filename: z.string().trim().min(1).max(200), mimeType: z.enum(['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'application/json']), base64: z.string().min(4).max(Math.ceil(limit / 3) * 4) }).strict();
+const uploadSchema = metadata.extend({ filename: z.string().trim().min(1).max(200), mimeType: z.enum(MEDIA_MIME), base64: z.string().min(4).max(Math.ceil(limit / 3) * 4) }).strict();
 const urlSchema = metadata.extend({ url: z.string().max(4000).url() }).strict();
 
 export function htmlText(html: string): string {
@@ -29,7 +30,23 @@ export function htmlText(html: string): string {
   return text.replace(/[\t\f\r ]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-async function extract(bytes: Buffer, mimeType: string) {
+export function sameOriginLinks(html: string, base: string): string[] {
+  const origin = new URL(base).origin;
+  const found = new Set<string>();
+  for (const match of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
+    try {
+      const url = new URL(match[1], base);
+      if (url.origin !== origin || url.username || url.password || !['http:', 'https:'].includes(url.protocol)) continue;
+      url.hash = '';
+      found.add(url.href);
+    } catch { /* ignore malformed links */ }
+  }
+  return [...found];
+}
+
+async function extract(bytes: Buffer, mimeType: string, filename = 'arquivo', media: { fetch?: typeof fetch; apiKey?: string | null } = {}) {
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return { text: docxText(bytes), method: 'docx_xml', ocr: false as const };
+  if (mimeType.startsWith('image/') || mimeType.startsWith('audio/') || mimeType.startsWith('video/')) return describeMedia(bytes, mimeType, filename, media);
   if (mimeType === 'application/pdf') return { ...(await extractPdf(bytes)), method: 'pdfjs_text' };
   let text: string;
   try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new DomainError(422, 'invalid_text_encoding', 'Text sources must use UTF-8'); }
@@ -54,7 +71,7 @@ function wrapper(fn: (request: FastifyRequest, reply: FastifyReply) => unknown) 
   };
 }
 
-export async function registerIngestion(app: FastifyInstance, store: Store, urlOptions: UrlOptions = {}): Promise<void> {
+export async function registerIngestion(app: FastifyInstance, store: Store, urlOptions: UrlOptions = {}, media: { fetch?: typeof fetch; apiKey?: string | null } = {}): Promise<void> {
   app.post('/api/v1/knowledge/upload', { bodyLimit: Math.ceil(limit / 3) * 4 + 16384 }, wrapper(async (request, reply) => {
     const actor = requireRequestPermission(store, request, 'knowledge:write');
     const input = uploadSchema.parse(request.body);
@@ -64,7 +81,7 @@ export async function registerIngestion(app: FastifyInstance, store: Store, urlO
     const bytes = Buffer.from(input.base64, 'base64');
     if (bytes.length > limit) throw new DomainError(413, 'source_too_large', 'Upload size exceeds 10 MiB');
     if (bytes.toString('base64') !== input.base64) throw new DomainError(400, 'invalid_base64', 'Provide a canonical base64 document');
-    const result = await extract(bytes, input.mimeType);
+    const result = await extract(bytes, input.mimeType, input.filename, media);
     requireRequestPermission(store, request, 'knowledge:write');
     const rawHash = hash(bytes);
     const item = store.transaction(() => {
@@ -74,7 +91,7 @@ export async function registerIngestion(app: FastifyInstance, store: Store, urlO
         title: input.title, type: 'document', content: result.text, agentId: input.agentId ?? null, tags: input.tags,
         document: { filename: input.filename, mimeType: input.mimeType, sizeBytes: bytes.length, storageKey: `inline-extracted:${rawHash}` },
         ingestionStatus: 'extracted', indexed: false, chunkCount: 0,
-        extraction: { status: 'extracted', method: result.method, textSha256: hash(result.text), sourceSha256: rawHash, extractedAt: new Date().toISOString(), bytes: bytes.length, ocr: false, ...('pages' in result ? { pages: result.pages, pageCount: result.pageCount } : {}), originalBinaryRetained: false },
+        extraction: { status: 'extracted', method: result.method, textSha256: hash(result.text), sourceSha256: rawHash, extractedAt: new Date().toISOString(), bytes: bytes.length, ocr: result.ocr === true, ...('pages' in result ? { pages: (result as { pages?: unknown }).pages, pageCount: (result as { pageCount?: number }).pageCount } : {}), originalBinaryRetained: false },
       });
     });
     return reply.code(201).send(item);
@@ -94,6 +111,19 @@ export async function registerIngestion(app: FastifyInstance, store: Store, urlO
       const rendered = await renderSite(source.finalUrl).catch(() => null);
       if (rendered && rendered.text.length > result.text.length) result = { text: rendered.text, method: `headless_render:${rendered.pages.length}`, ocr: false };
     }
+    if (html) {
+      const links = sameOriginLinks(source.body.toString('utf8'), source.finalUrl).filter(link => link !== source.finalUrl).slice(0, 5);
+      const pages = [result.text];
+      for (const link of links) {
+        try {
+          const next = await fetchPublicUrl(link, urlOptions);
+          if (!next.contentType.includes('html') && !next.contentType.includes('plain')) continue;
+          const extracted = await extract(next.body, next.contentType);
+          if (extracted.text.trim()) pages.push(extracted.text);
+        } catch { /* uma página inacessível não invalida o restante do site */ }
+      }
+      result = { ...result, text: pages.join('\n\n').slice(0, 100_000), pageCount: pages.length };
+    }
     if (!result.text.trim()) throw new DomainError(422, 'empty_source', 'No readable text was found');
     requireRequestPermission(store, request, 'knowledge:write');
     const item = store.transaction(() => {
@@ -102,7 +132,7 @@ export async function registerIngestion(app: FastifyInstance, store: Store, urlO
       return store.create(actor.tenantId, 'knowledge', {
         title: input.title, type: 'url', url: source.finalUrl, content: result.text, agentId: input.agentId ?? null, tags: input.tags,
         ingestionStatus: 'extracted', indexed: false, chunkCount: 0,
-        extraction: { status: 'extracted', method: result.method, textSha256: hash(result.text), sourceSha256: hash(source.body), sourceUrl: source.sourceUrl, finalUrl: source.finalUrl, redirects: source.redirects, retrievedAt: source.retrievedAt, contentType: source.contentType, bytes: source.body.length, ocr: false, ...('pages' in result ? { pages: result.pages, pageCount: result.pageCount } : {}) },
+        extraction: { status: 'extracted', method: result.method, textSha256: hash(result.text), sourceSha256: hash(source.body), sourceUrl: source.sourceUrl, finalUrl: source.finalUrl, redirects: source.redirects, retrievedAt: source.retrievedAt, contentType: source.contentType, bytes: source.body.length, ocr: false, ...('pageCount' in result && result.pageCount ? { pageCount: result.pageCount } : {}), ...('pages' in result ? { pages: result.pages } : {}) },
       });
     });
     return reply.code(201).send(item);

@@ -70,7 +70,7 @@ export interface Session {
 
 /* ----------------------------- Assistentes ----------------------------- */
 
-export type AgentType = 'voice' | 'chat'
+export type AgentType = 'voice' | 'chat' | 'omni'
 
 export interface GreetingRule {
   id: ID

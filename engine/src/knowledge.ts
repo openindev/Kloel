@@ -85,8 +85,10 @@ export async function ingestKnowledge(store: Store, tenantId: string, id: string
   const extracted = sourceProof?.status === 'extracted' && sourceProof.textSha256 === createHash('sha256').update(String(entry.content ?? '')).digest('hex') && (!body.content || body.content === entry.content);
   if (entry.type === 'url' && !extracted) throw new DomainError(422, 'source_import_required', 'URL crawling is not implemented by this endpoint. Import the URL through /knowledge/import-url before indexing.');
   if (entry.type === 'document') {
-    const metadata = entry.document as { mimeType?: string } | undefined;
-    if (!['text/plain', 'text/markdown', 'text/csv', 'application/json'].includes(metadata?.mimeType ?? '') && !(metadata?.mimeType === 'application/pdf' && extracted)) throw new DomainError(422, 'document_format_unavailable', 'This endpoint accepts plain-text documents. PDF/OCR extraction is not implemented by this endpoint; upload PDFs through /knowledge/upload. OCR remains unavailable.');
+    const mime = (entry.document as { mimeType?: string } | undefined)?.mimeType ?? '';
+    const plain = ['text/plain', 'text/markdown', 'text/csv', 'application/json'].includes(mime);
+    const extractedMedia = extracted && (mime === 'application/pdf' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/'));
+    if (!plain && !extractedMedia) throw new DomainError(422, 'document_format_unavailable', 'This endpoint accepts plain-text documents. PDF/OCR extraction is not implemented by this endpoint; upload PDFs through /knowledge/upload. OCR remains unavailable.');
   }
   const content = body.content ?? String(entry.content ?? '');
   if (!content.trim() || content.length > 100_000) throw new DomainError(400, 'content_required', 'Provide source text containing 1–100000 characters');

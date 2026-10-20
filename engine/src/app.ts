@@ -29,6 +29,8 @@ import { registerKnowledge, startKnowledgeBackfill } from './knowledge.js';
 import { registerNumbers } from './numbers/service.js';
 import { registerMembers } from './members.js';
 import { registerIngestion } from './ingestion.js';
+import { registerKnowledgeFaq } from './knowledge-faq.js';
+import { registerCommercial } from './commercial.js';
 import { startWorkers, ensureJoanaWhatsAppChannel } from './providers/worker.js';
 import { registerIntegrations } from './integrations.js';
 import { registerContactImport } from './contact-import.js';
@@ -71,7 +73,8 @@ export async function buildApp(store=new Store(process.env.DATABASE_PATH||'data/
   await app.register(rateLimit,{max:Number(process.env.RATE_LIMIT_MAX||600),timeWindow:'1 minute',allowList:(req)=>!req.url.startsWith('/api/')&&!req.url.startsWith('/widget/')});
   app.addHook('onRequest',async(req,reply)=>{
     reply.header('X-Content-Type-Options','nosniff').header('Referrer-Policy','no-referrer').header('Cache-Control','no-store');
-    const publicPath=PUBLIC_CHAT_PATHS.has(req.url.split('?')[0])||PUBLIC_BOOKING_PATHS.has(req.url.split('?')[0]);
+    const pathOnly=req.url.split('?')[0];
+    const publicPath=PUBLIC_CHAT_PATHS.has(pathOnly)||PUBLIC_BOOKING_PATHS.has(pathOnly)||pathOnly.startsWith('/api/v1/commercial/inbound/');
     if(!publicPath&&['POST','PATCH','PUT','DELETE'].includes(req.method)&&req.headers.origin&&!origins.includes(req.headers.origin))return reply.code(403).send({error:{code:'origin_rejected',message:'Origem não autorizada.'}});
   });
   app.setErrorHandler((error,req,reply)=>{
@@ -111,6 +114,8 @@ export async function buildApp(store=new Store(process.env.DATABASE_PATH||'data/
   await registerKnowledge(app,store);
   await registerNumbers(app,store);
   await registerIngestion(app,store);
+  await registerKnowledgeFaq(app,store);
+  await registerCommercial(app,store);
   await registerMembers(app,store);
   registerMetaEmbeddedSignup(app,store);
   registerRecordings(app,store);

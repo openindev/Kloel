@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, type TextareaHTMLAttributes } from 'react'
-import { Loader2, Phone, MessageCircle, Mic } from 'lucide-react'
+import { Headset, Loader2, Phone, MessageCircle, Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AgentType } from '@/domain/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,16 +15,16 @@ import { useGreetingVariableDefs } from './greetingVariables'
 export const LEFT_CHECK_ITEM = ''
 
 /** Subtítulo do seletor de assistentes — em inglês na referência (OBSERVADO: "Voice Agent"; chat: "Chat Agent"). */
-export const AGENT_TYPE_LABEL: Record<AgentType, string> = { voice: 'Voice Agent', chat: 'Chat Agent' }
+export const AGENT_TYPE_LABEL: Record<AgentType, string> = { voice: 'Voice Agent', chat: 'Chat Agent', omni: 'Chat + Ligação' }
 
 /** Chip de tipo do assistente (seletor, OBSERVADO): voz = `bg-sky-500/10 text-sky-700` + phone; chat = violeta + message-circle. */
 export function AgentTypeChip({ type, className }: { type: AgentType; className?: string }) {
-  const Icon = type === 'voice' ? Phone : MessageCircle
+  const Icon = type === 'voice' ? Phone : type === 'omni' ? Headset : MessageCircle
   return (
     <span
       className={cn(
         'flex h-4 w-4 shrink-0 items-center justify-center rounded',
-        type === 'voice' ? 'bg-sky-500/10 text-sky-700' : 'bg-violet-500/10 text-violet-700',
+        type === 'voice' ? 'bg-sky-500/10 text-sky-700' : type === 'omni' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-violet-500/10 text-violet-700',
         className,
       )}
     >

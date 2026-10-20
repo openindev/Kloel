@@ -10,6 +10,10 @@ import { metaCreds } from './meta-tenants.js';
 import { registerCallActions } from './call-actions.js';
 import { findContactByPhone, lastWhatsAppInbound, linkLeadConversations, normalizePhone } from './lead-link.js';
 import { autoBuyAfterUsage } from './billing/addon-purchase.js';
+import { assignedIntegrationTools } from './integrations.js';
+import { commercialSummary, executeCommercialTool } from './commercial.js';
+import { executeAgentIntegration } from './integrations.js';
+import { resolveMembershipActor } from './memberships/service.js';
 
 /** Internal API for the LiveKit phone worker (Railway private network). Acts as the engine's phone runtime for one agent. */
 export const PHONE_RUNTIME_PREFIX = '/api/v1/internal/phone/';
@@ -70,7 +74,28 @@ export function registerPhoneRuntime(app: FastifyInstance, store: Store) {
     if (!agent) return reply.code(404).send({ error: { code: 'agent_not_configured', message: 'Agente telefônico não configurado.' } });
     const knowledge = store.list(tenant, 'knowledge').filter(k => k.agentId === agentId && typeof k.content === 'string')
       .map(k => `### ${String(k.title)}\n${String(k.content)}`).join('\n\n').slice(0, 600_000);
-    return { id: agent.id, name: agent.name, status: agent.status, prompt: agent.prompt, initialMessage: agent.initialMessage, language: agent.language, voice: agent.voice, tools: agent.tools, rules: (agent.rules as unknown[] | undefined ?? []), settings: agent.settings, knowledge, tenantId: tenant, ...editorRuntime(store, tenant, agentId) };
+    const httpTools = assignedIntegrationTools(store, tenant, agentId).map(tool => ({ name: tool.name, description: tool.description }));
+    const commercial = commercialSummary(store, tenant, agentId);
+    return { id: agent.id, name: agent.name, status: agent.status, prompt: agent.prompt, initialMessage: agent.initialMessage, language: agent.language, voice: agent.voice, tools: agent.tools, rules: (agent.rules as unknown[] | undefined ?? []), settings: agent.settings, knowledge, tenantId: tenant, httpTools, commercial, ...editorRuntime(store, tenant, agentId) };
+  });
+  app.post(`${PHONE_RUNTIME_PREFIX}tool`, async req => {
+    const { tenant, agentId } = scope(req);
+    const body = z.object({ name: z.string().min(1).max(80), arguments: z.string().max(8000).optional() }).strict().parse(req.body ?? {});
+    let args: Record<string, unknown> = {};
+    try { args = body.arguments ? JSON.parse(body.arguments) : {}; } catch { return { ok: false, reason: 'json_invalido' }; }
+    if (!args || typeof args !== 'object' || Array.isArray(args)) return { ok: false, reason: 'json_invalido' };
+    if (body.name === 'comercial_acao' || body.name.startsWith('comercial_')) {
+      const payload = body.name === 'comercial_acao' ? args as { acao?: string; argumentos?: Record<string, unknown> } : { acao: body.name, argumentos: args };
+      try { return await executeCommercialTool(store, tenant, agentId, payload); }
+      catch (error) { return { ok: false, reason: error instanceof Error ? error.message : 'falhou' }; }
+    }
+    const action = store.list(tenant, 'integration-actions').find(item => `integration_${String(item.id).replaceAll('-', '')}` === body.name);
+    if (!action || !Array.isArray(action.agentIds) || !action.agentIds.includes(agentId)) return { ok: false, reason: 'ferramenta_indisponivel' };
+    const actor = resolveMembershipActor(store, String(action.configuredBy ?? ''), tenant);
+    const agent = store.get(tenant, 'agents', agentId);
+    if (!actor || !agent) return { ok: false, reason: 'integracao_sem_responsavel' };
+    try { return await executeAgentIntegration(store, { tenantId: tenant, agent, actor }, String(action.id), args, `voice:${agentId}:${body.name}:${Date.now()}`); }
+    catch (error) { return { ok: false, reason: error instanceof Error ? error.message : 'falhou' }; }
   });
   app.post(`${PHONE_RUNTIME_PREFIX}calls`, async req => {
     const { tenant, agentId } = scope(req);

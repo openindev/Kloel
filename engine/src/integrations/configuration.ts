@@ -8,11 +8,12 @@ import { MembershipError } from '../memberships/service.js';
 import { OAuthError } from '../oauth/client.js';
 import { pinnedAddress } from '../ingestion/safe-url.js';
 import { integrationUrl, type IntegrationTransport } from './transport.js';
+import { seal } from '../oauth/crypto.js';
 import { actionCollection, configureAction } from './service.js';
 
 export const configurationOperations = 'integration-configuration-operations';
 const uuid = z.string().uuid(), revision = z.number().int().nonnegative().safe();
-const inputSchema = z.object({ expectedTenantId: z.string().min(1), idempotencyKey: uuid, actionId: uuid.nullable(), expectedRevision: revision, configuration: z.record(z.unknown()).optional(), enabled: z.boolean().optional(), executionTiming: z.enum(['during', 'after']).optional() }).strict().refine(v => (v.configuration !== undefined) !== (v.enabled !== undefined)).refine(v => v.enabled === undefined || v.executionTiming === undefined).refine(v => v.actionId === null ? v.expectedRevision === 0 && v.configuration !== undefined : v.expectedRevision > 0 && v.expectedRevision < Number.MAX_SAFE_INTEGER);
+const inputSchema = z.object({ expectedTenantId: z.string().min(1), idempotencyKey: uuid, actionId: uuid.nullable(), expectedRevision: revision, configuration: z.record(z.unknown()).optional(), enabled: z.boolean().optional(), purgeSecrets: z.boolean().optional(), executionTiming: z.enum(['during', 'after']).optional() }).strict().refine(v => (v.configuration !== undefined) !== (v.enabled !== undefined)).refine(v => v.enabled === undefined || v.executionTiming === undefined).refine(v => v.purgeSecrets !== true || v.enabled === false).refine(v => v.actionId === null ? v.expectedRevision === 0 && v.configuration !== undefined : v.expectedRevision > 0 && v.expectedRevision < Number.MAX_SAFE_INTEGER);
 const fail = (code: string, status = 409): never => { throw new DomainError(status, code, 'A configuração ou a sessão mudou. Consulte a referência original antes de tentar novamente.'); };
 const receipt = (row: Entity) => ({ key: row.key, kind: row.kind, tenantId: row.tenantId, actionId: row.actionId, expectedRevision: row.expectedRevision, revision: row.revision, status: 'succeeded' as const, automaticRetry: false as const, createdAt: row.createdAt });
 
@@ -53,7 +54,14 @@ export async function registerIntegrationConfigurations(app: FastifyInstance, st
       a.assertCurrent(); const replay = prior(); if (replay) return replay;
       const live = store.get(a.tenantId, actionCollection, input.actionId!);
       if (!live || live.revision !== input.expectedRevision || hash(live) !== originalHash) return fail('integration_configuration_changed');
-      store.update(a.tenantId, actionCollection, live.id, { enabled: input.enabled, revision: input.expectedRevision + 1 });
+      const patch: Record<string, unknown> = { enabled: input.enabled, revision: input.expectedRevision + 1 };
+      if (input.purgeSecrets) {
+        let encryptedConfig: string;
+        try { encryptedConfig = seal({ url: 'https://deleted.invalid/removed', headers: {} }, `${live.tenantId}:${live.id}:integration-config`); }
+        catch { throw new DomainError(503, 'integration_storage_unavailable', 'Chave de proteção das integrações indisponível.'); }
+        Object.assign(patch, { encryptedConfig, configuredSecretHeaders: [], signed: false, agentIds: [], targetOrigin: 'https://deleted.invalid' });
+      }
+      store.update(a.tenantId, actionCollection, live.id, patch);
       const saved = store.create(a.tenantId, configurationOperations, { key: input.idempotencyKey, kind, actionId: live.id, expectedRevision: input.expectedRevision, revision: input.expectedRevision + 1, fingerprint, authority: a.scope });
       a.assertCurrent(); return { operation: receipt(saved), replayed: false };
     });

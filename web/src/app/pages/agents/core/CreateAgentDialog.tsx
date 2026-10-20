@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Phone, MessageCircle, MessageSquare } from 'lucide-react'
+import { Headset, Phone, MessageCircle, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { AgentType } from '@/domain/types'
@@ -63,14 +63,14 @@ export function CreateAgentDialog({ open, onOpenChange, initialType = 'voice' }:
 
   return (
     <Dialog open={open} onOpenChange={(value) => !pending.current && onOpenChange(value)}>
-      <DialogContent className="max-h-screen gap-y-8 overflow-y-auto border-0 sm:max-w-[640px]">
+      <DialogContent className="max-h-screen gap-y-8 overflow-y-auto border-0 sm:max-w-[860px]">
         <DialogHeader>
           <DialogTitle>Criar assistente</DialogTitle>
         </DialogHeader>
         <form className="flex flex-col gap-6" onSubmit={submit} noValidate>
           <div className="space-y-1">
             <Label id="assistant-type-label">Tipo de assistente</Label>
-            <div role="radiogroup" aria-labelledby="assistant-type-label" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div role="radiogroup" aria-labelledby="assistant-type-label" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className={cardCls(type === 'voice')}>
                 <input type="radio" name="assistant-type" value="voice" className="peer sr-only" checked={type === 'voice'} onChange={() => setType('voice')} />
                 <span className="flex items-center gap-2">
@@ -106,6 +106,16 @@ export function CreateAgentDialog({ open, onOpenChange, initialType = 'voice' }:
                   </SimpleTooltip>
                 </span>
               </label>
+              <label className={cardCls(type === 'omni')}>
+                <input type="radio" name="assistant-type" value="omni" className="peer sr-only" checked={type === 'omni'} onChange={() => setType('omni')} />
+                <span className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
+                    <Headset className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-semibold leading-5">Chat + Ligação</span>
+                </span>
+                <span className="line-clamp-3 text-[13px] leading-5 text-muted-foreground">O mesmo assistente no WhatsApp, no chatbot e no telefone.</span>
+              </label>
             </div>
           </div>
           <div className="grid flex-1 gap-2 space-y-1">
@@ -114,7 +124,7 @@ export function CreateAgentDialog({ open, onOpenChange, initialType = 'voice' }:
               id="new-agent-name"
               value={name}
               aria-invalid={!!error}
-              placeholder={type === 'voice' ? 'Roberta' : 'Maria'}
+              placeholder={type === 'voice' ? 'Roberta' : type === 'omni' ? 'Ana' : 'Maria'}
               onChange={(e) => {
                 setName(e.target.value)
                 if (error) setError(undefined)

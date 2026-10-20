@@ -9,7 +9,7 @@ import { registerIntegrations } from '../src/integrations.js';
 import { configurationOperations } from '../src/integrations/configuration.js';
 import { actionCollection } from '../src/integrations/access.js';
 import { integrationAgentTools, executeAgentIntegration } from '../src/integrations/service.js';
-import { digest } from '../src/oauth/crypto.js';
+import { digest, unseal } from '../src/oauth/crypto.js';
 import { seedMember } from './fixtures/membership.js';
 import { CONTEXT_HEADERS, resolveSessionContext } from '../src/request-context.js';
 
@@ -80,6 +80,44 @@ test('explicit disable uses CAS and one receipt while preserving encrypted priva
   const after = f.store.get(f.actor.tenantId, actionCollection, original.actionId)!; assert.equal(after.enabled, false); assert.equal(after.revision, 2); assert.equal(after.encryptedConfig, before.encryptedConfig);
   assert.equal((await f.post(input)).json().replayed, true); assert.equal(f.state.dns, 1);
   assert.equal((await f.post({ ...input, idempotencyKey: randomUUID(), enabled: true })).statusCode, 409);
+});
+test('purge on disable replaces the sealed webhook and drops the saved secret', async t => {
+  const f = await fixture(t), original = (await f.post(f.body())).json().operation;
+  const before = f.store.get(f.actor.tenantId, actionCollection, original.actionId)!;
+  const opened = unseal<{ url: string }>(String(before.encryptedConfig), `${f.actor.tenantId}:${original.actionId}:integration-config`);
+  assert.match(opened.url, /workflow\.example\.com/);
+  const input = { expectedTenantId: f.actor.tenantId, idempotencyKey: randomUUID(), actionId: original.actionId, expectedRevision: 1, enabled: false, purgeSecrets: true };
+  const response = await f.post(input);
+  assert.equal(response.statusCode, 200, response.body);
+  const after = f.store.get(f.actor.tenantId, actionCollection, original.actionId)!;
+  const purged = unseal<{ url: string; headers: Record<string, string> }>(String(after.encryptedConfig), `${f.actor.tenantId}:${original.actionId}:integration-config`);
+  assert.equal(purged.url, 'https://deleted.invalid/removed');
+  assert.equal(JSON.stringify(purged).includes('workflow.example.com'), false);
+  assert.equal(JSON.stringify(purged).includes('fixture-credential'), false);
+  assert.deepEqual(after.configuredSecretHeaders, []);
+  assert.equal(after.signed, false);
+  assert.deepEqual(after.agentIds, []);
+  assert.equal(after.targetOrigin, 'https://deleted.invalid');
+  assert.equal(after.enabled, false);
+});
+test('webhook probe returns the pinned HTTP status and rejects a private URL', async t => {
+  const previous = process.env.OAUTH_ENCRYPTION_KEY; process.env.OAUTH_ENCRYPTION_KEY = randomBytes(32).toString('base64');
+  const store = new Store(), actor = { tenantId: randomUUID(), userId: randomUUID(), role: 'owner' as const }, raw = randomUUID();
+  seedMember(store, actor); store.db.prepare('INSERT INTO sessions(hash,user_id,tenant_id,expires) VALUES(?,?,?,?)').run(digest(raw), actor.userId, actor.tenantId, Date.now() + 60000);
+  const app = Fastify(); await app.register(cookie); await registerAuth(app, store);
+  let seen = '';
+  await registerIntegrations(app, store, { resolve: async () => [{ address: '93.184.216.34', family: 4 }], request: async (_url, _address, spec) => { seen = spec.body?.toString('utf8') ?? ''; return { status: 201, headers: {}, body: Buffer.from('accepted sample') }; } });
+  t.after(async () => { await app.close(); store.close(); if (previous === undefined) delete process.env.OAUTH_ENCRYPTION_KEY; else process.env.OAUTH_ENCRYPTION_KEY = previous; });
+  const headers = Object.fromEntries(Object.entries(CONTEXT_HEADERS).map(([key, header]) => [header, resolveSessionContext(store, digest(raw))!.context[key as keyof typeof CONTEXT_HEADERS] ?? '-']));
+  const probe = await app.inject({ method: 'POST', url: '/api/v1/integrations/webhook-probe', cookies: { kloel_session: raw }, headers, payload: { url: 'https://workflow.example.com/hook' } });
+  assert.equal(probe.statusCode, 200, probe.body);
+  assert.equal(probe.json().ok, true);
+  assert.equal(probe.json().status, 201);
+  assert.match(probe.json().body, /accepted sample/);
+  assert.match(seen, /kloel\.connection_test/);
+  const denied = await app.inject({ method: 'POST', url: '/api/v1/integrations/webhook-probe', cookies: { kloel_session: raw }, headers, payload: { url: 'https://127.0.0.1/hook' } });
+  assert.equal(denied.json().error.code, 'unsafe_url');
+  assert.notEqual(denied.statusCode, 200);
 });
 test('private destination rejection and mixed inputs never commit an action', async t => {
   const f = await fixture(t);
