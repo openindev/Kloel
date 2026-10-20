@@ -94,6 +94,37 @@ test('create and duplicate save Técnico settings and still reject unsupported c
   await assert.rejects(() => f.commands.create({ ...base, technical: { ...base.technical, preciseExtraction: [{ id: 'x', name: 'Endereço', example: '' }] } }), /Nenhuma alteração foi salva/)
   assert.equal(f.calls.length, 0); assert.equal(f.journal.read(), null)
 })
+test('missing or stale editor fence re-reads editor-state and still issues one PUT', async () => {
+  const f = fixture()
+  const respond = async (_path: string, options: any) => {
+    if (options?.method !== 'PUT') return view()
+    const op = operation(options.body.idempotencyKey)
+    return { ...view(), agent: { ...runtime(), name: 'Nova' }, revision: 1, state: options.body.state, lastWrite: op, operation: op, replayed: false }
+  }
+  f.set(respond)
+  const missing = projectAgent(runtime())
+  assert.equal(missing.cascaEditor, undefined)
+  const saved = await f.commands.update(missing, { name: 'Nova' })
+  assert.equal(saved.name, 'Nova')
+  assert.deepEqual(f.calls.map(call => call.options?.method ?? 'GET'), ['GET', 'PUT'])
+  assert.equal(f.calls[1].options.body.expectedRevision, 0)
+  assert.equal(f.calls[1].options.body.expectedAgentVersion, 'a'.repeat(64))
+  assert.deepEqual(f.calls[1].options.body.agent, { name: 'Nova' })
+  assert.equal(f.journal.read(), null)
+  f.calls.length = 0
+  const stale = projectAgent(runtime(), view(), 1)
+  assert.equal(stale.cascaEditor?.generation, 1)
+  const again = await f.commands.update(stale, { name: 'Nova' })
+  assert.equal(again.name, 'Nova')
+  assert.deepEqual(f.calls.map(call => call.options?.method ?? 'GET'), ['GET', 'PUT'])
+})
+test('an assistant from another organization is not fetched or saved', async () => {
+  const f = fixture(), other = projectAgent(runtime(), view(), 3)
+  other.orgId = 'other-org'
+  await assert.rejects(() => f.commands.update(other, { name: 'Nova' }), /organização da sessão mudou/)
+  assert.equal(f.calls.length, 0)
+  assert.equal(f.journal.read(), null)
+})
 test('canonicalizing old empty or whitespace-only preferences does not block an unrelated rename', async () => {
   const f = fixture(), base = projectAgent(runtime(), view(), 3)
   base.technical.preciseExtraction = [{ id: 'empty', name: ' ', example: '' }, { id: 'kept', name: ' Email ', example: ' ' }]

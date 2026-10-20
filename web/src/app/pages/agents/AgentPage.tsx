@@ -313,13 +313,20 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])
 
-  // sincroniza com alterações externas enquanto não há edição pendente
+  // sincroniza com alterações externas enquanto não há edição pendente.
+  // O carimbo do editor (geração/revisão) é atualizado mesmo com rascunho sujo: sem ele o Salvar
+  // abortava no navegador ("Atualize o assistente antes de salvar.") e nenhum PUT saía.
   const lastBase = useRef(base)
   useEffect(() => {
+    const meta = agent.cascaEditor
+    const held = draftBase.current
+    if (meta && held.id === agent.id && held.orgId === agent.orgId && (held.cascaEditor?.generation !== meta.generation || held.cascaEditor.revision !== meta.revision || held.cascaEditor.agentVersion !== meta.agentVersion)) {
+      draftBase.current = { ...held, cascaEditor: meta, runtimeStatus: agent.runtimeStatus ?? held.runtimeStatus }
+    }
     if (lastBase.current === base) return
     setDraft((d) => { if (countChanges(lastBase.current, d) !== 0) return d; draftBase.current = agent; return base })
     lastBase.current = base
-  }, [base])
+  }, [agent, base])
 
   const changes = useMemo(() => countChanges(base, draft), [base, draft])
   const issues = useMemo(() => validateDraft(draft, agent.type), [draft, agent.type])

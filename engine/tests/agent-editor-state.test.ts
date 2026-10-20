@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { agentEditorFixture } from './fixtures/agent-editor-state.js';
+import { setTenantEnforcement } from '../src/billing/plans.js';
 import { agentEditorStates, agentEditorOperations } from '../src/agent-editor-state.js';
 import { sanitizeAgentEditorState } from '../src/agent-editor-state-schema.js';
 import { guardedBoundary } from './fixtures/request-context.js';
@@ -58,6 +59,26 @@ test('editor shape rejects root authority and prototype injection and enforces l
   for(const state of [{id:'x'},{tenantId:'x'},{status:'active'},JSON.parse('{"technical":{"__proto__":{"x":true}}}'),{companyInfo:'x'.repeat(100001)},{technical:{value:Infinity}}])assert.throws(()=>sanitizeAgentEditorState(state));
   const safe=sanitizeAgentEditorState({technical:{nested:{access_token:'secret',password:'secret',keep:false}},companyInfo:'safe'});assert.deepEqual(safe,{technical:{nested:{keep:false}},companyInfo:'safe'});
 });
+test('enforced org without a plan still saves fields and only blocks activation, with a clear message', async t => {
+  const f = await agentEditorFixture(t)
+  const created = ok(await f.create(), 201)
+  assert.equal(created.agent.status, 'active')
+  setTenantEnforcement(f.store, { operationKey: randomUUID(), expectedRevision: 0, tenantId: f.actor.tenantId, stripeMode: 'live', enabled: true })
+  const renamed = ok(await f.save(created, { agent: { name: 'Nome novo' }, state: { ...created.state, companyInfo: 'LR Trial Org' } }))
+  assert.equal(renamed.agent.name, 'Nome novo')
+  assert.equal(renamed.agent.status, 'active')
+  assert.equal(renamed.state.companyInfo, 'LR Trial Org')
+  const paused = ok(await f.save(renamed, { agent: { status: 'paused' } }))
+  assert.equal(paused.agent.status, 'paused')
+  const blocked = await f.save(paused, { agent: { status: 'active' } })
+  assert.equal(blocked.statusCode, 402)
+  assert.equal(blocked.json().error.code, 'plan_required')
+  assert.equal(blocked.json().error.message, 'Assine um plano para ativar o assistente.')
+  const still = ok(await f.detail(created.agent.id))
+  assert.equal(still.agent.status, 'paused')
+  assert.equal(still.agent.name, 'Nome novo')
+  assert.equal(still.state.companyInfo, 'LR Trial Org')
+})
 test('private transport fields cannot hide in nested webhook or integration editorial objects',()=>{
   const state=sanitizeAgentEditorState({webhooks:[{id:'w1',request:{url:'https://example.test/?secret=private',body:'private',headers:{x:'private'},defaults:'private',name:'safe'}}],integrations:[{id:'i1',nested:{config:{value:'private'},name:'safe'}}]});
   assert.deepEqual(state,{webhooks:[{id:'w1',request:{name:'safe'}}],integrations:[{id:'i1',nested:{name:'safe'}}]});
