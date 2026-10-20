@@ -86,6 +86,20 @@ export function createKnowledgeCommands(context: EngineContext, expected: Expect
       if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || address.length > 200) throw Error('Informe uma URL pública de até 200 caracteres.')
       return create(() => api.importUrl(address, url.href))
     },
+    async generate(sourceId: string) {
+      if (working.has(key)) throw Error('Aguarde a operação atual.')
+      working.add(key)
+      try {
+        const result = await api.generateInfo(sourceId)
+        const st = useStore.getState()
+        for (const id of result.removedIds) st.remove('knowledgeEntries', id)
+        for (const item of result.items) {
+          publishRow(context, item)
+          try { await api.ingest(item.id) } catch { /* o texto fica salvo; a busca vetorial depende da indexação */ }
+        }
+        return result.created
+      } finally { working.delete(key) }
+    },
     upload: (title: string, file: File) => {
       if (!title.trim() || title.length > 200 || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) throw Error('Este envio aceita documento de até 10 MiB e nome de até 200 caracteres.')
       return create(() => api.upload(title, file))

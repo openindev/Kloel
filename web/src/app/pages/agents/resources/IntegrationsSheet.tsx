@@ -27,6 +27,8 @@ import { EXECUTION_LABEL, ExecutionControl } from './shared/timing'
 import { saveAgent, upsert, useErrors, useHoursDraft } from './shared/hooks'
 import { newItemParam, parseNewItem, useRoutedView, type ResourceProps } from './shared/listView'
 import { AGENT_INTEGRATIONS, schemaBySlug, type IntegrationField, type IntegrationSchema } from './integrationSchemas'
+import { PersonalizarSheet } from './PersonalizarSheet'
+import { realWebhooks } from '@/services/casca/webhooks'
 
 type View = { mode: 'list'; seq: number } | { mode: 'picker'; fromList: boolean; seq: number } | { mode: 'edit'; id?: string; slug: string; fromList: boolean; seq: number }
 
@@ -65,6 +67,9 @@ export function IntegrationsResource({ agent, open, onOpenChange }: ResourceProp
     const target = view.id ? agent.integrations.find((i) => i.id === view.id) : undefined
     const schema = schemaBySlug(view.slug)
     if (!schema) return null
+    if (schema.slug === 'personalizar') {
+      return <PersonalizarSheet agent={agent} target={target} open={open} onOpenChange={onOpenChange} onDone={() => (view.fromList || agent.integrations.length ? next({ mode: 'list' }) : onOpenChange(false))} />
+    }
     return (
       <IntegrationEditor
         key={view.seq}
@@ -309,6 +314,11 @@ function IntegrationEditor({
         </UnderlineTabsList>
 
         <TabsContent value="general" className="mt-6 flex flex-col gap-4 data-[state=inactive]:hidden">
+          {schema.auth === 'webhook' && target?.engineBinding?.kind === 'http' && (
+            <Button type="button" variant="secondary" className="self-start" onClick={() => void realWebhooks.test({ agentId: agent.id, actionId: target.engineBinding && target.engineBinding.kind === 'http' ? target.engineBinding.id : '', arguments: {} }).then(result => toast.success('Conexão confirmada', { description: `HTTP ${result.code} em ${result.ms} ms` })).catch(error => toast.error(error instanceof Error ? error.message : 'Não foi possível testar'))}>
+              Testar conexão
+            </Button>
+          )}
           <FieldRow label="Execução" error={errors.window}>
             <ExecutionControl timing={timing} onTimingChange={setTiming} win={win} onWinChange={(v) => (setWin(v), clear('window'))} hoursConfigured={hours.configured} onConfigure={hours.openSheet} />
           </FieldRow>

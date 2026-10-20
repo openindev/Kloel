@@ -329,7 +329,8 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
   }, [agent, base])
 
   const changes = useMemo(() => countChanges(base, draft), [base, draft])
-  const issues = useMemo(() => validateDraft(draft, agent.type), [draft, agent.type])
+  const kind = draft.type ?? agent.type
+  const issues = useMemo(() => validateDraft(draft, kind), [draft, kind])
 
   const update = useCallback<AgentDraftCtx['update']>((p) => { if (!writing.current) setDraft((d) => ({ ...d, ...(typeof p === 'function' ? p(d) : p) })) }, [])
   const ctx = useMemo<AgentDraftCtx>(
@@ -347,7 +348,8 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
     }
     writing.current = true; setSaving(true)
     try {
-      const confirmed = await saveAgentFields(draftBase.current, normalizeDraft(draft, agent.type))
+      const nextType = draft.type ?? agent.type
+      const confirmed = await saveAgentFields(draftBase.current, { ...normalizeDraft(draft, nextType), type: nextType, channels: nextType === 'voice' ? ['phone'] : nextType === 'omni' ? ['phone', 'whatsapp', 'webchat'] : ['whatsapp', 'webchat'], ...(nextType !== 'voice' ? { webchat: agent.webchat ?? { color: '#585DF5', position: 'right' as const, title: draft.name, welcome: `Olá! Eu sou ${draft.name}. Como posso ajudar?` } } : {}) })
       if (!mounted.current || useStore.getState().db.session.orgId !== agent.orgId) return false
       useStore.getState().patch('agents', agent.id, confirmed)
       draftBase.current = confirmed; setDraft(pickDraft(confirmed))
@@ -355,7 +357,7 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
       return true
     } catch (error) { if (mounted.current) toast.error('Não foi possível salvar', { description: error instanceof Error ? error.message : 'Confira o acesso e tente consultar novamente.' }); return false }
     finally { writing.current = false; if (mounted.current) setSaving(false) }
-  }, [issues, draft, agent.id, agent.orgId, agent.type, tab, navigate])
+  }, [issues, draft, agent.id, agent.orgId, agent.type, agent.webchat, tab, navigate])
 
   const discard = () => {
     if (writing.current) return
@@ -419,7 +421,13 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
   )
 
   const isChat = agent.type === 'chat'
-  const testLabel = isChat ? 'Testar chat' : 'Testar ligação'
+  const isOmni = agent.type === 'omni'
+  const showChat = agent.type !== 'voice'
+  const showPhone = agent.type !== 'chat'
+  const [testKind, setTestKind] = useState<'chat' | 'voice'>(isChat ? 'chat' : 'voice')
+  const testingChat = isOmni ? testKind === 'chat' : isChat
+  const testLabel = testingChat ? 'Testar chat' : 'Testar ligação'
+  const openTest = (mode: 'chat' | 'voice') => { setTestKind(mode); setTestOpen(true); setTestKey((k) => k + 1) }
   // barra: voz com números → "Números de telefone [BR] ⌄"; chat → "WhatsApp" / "Chatbot de IA" com estado do canal e do plano
   const assigned = useCollection('phoneNumbers').filter((n) => n.agentId === agent.id)
   const countries = [...new Set(assigned.map(numberCountryCode))]
@@ -439,12 +447,9 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
   const testButton = (
     <DarkBarPrimary
       disabled={changes > 0}
-      onClick={() => {
-        setTestOpen(true)
-        setTestKey((k) => k + 1)
-      }}
+      onClick={() => openTest(isChat ? 'chat' : 'voice')}
     >
-      {isChat ? <MessageCircle className="h-4 w-4" /> : <Headset className="h-4 w-4" />}
+      {testingChat ? <MessageCircle className="h-4 w-4" /> : <Headset className="h-4 w-4" />}
       {testLabel}
     </DarkBarPrimary>
   )
@@ -489,7 +494,7 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
           {toggling ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className={agent.runtimeStatus === 'active' ? 'h-2 w-2 rounded-full bg-emerald-400' : 'h-2 w-2 rounded-full bg-slate-400'} />}
           {agent.runtimeStatus === 'active' ? 'Desativar' : 'Ativar assistente'}
         </DarkBarButton>
-        {isChat ? (
+        {showChat && (
           <>
             <DarkBarButton
               className="whitespace-nowrap max-sm:px-2 max-sm:[&>svg:first-child]:hidden"
@@ -511,7 +516,8 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
               {!hasPlan('webchat') ? <PlanChip /> : webchatLive ? <ActiveDot label="Ativo" /> : <SetupChip />}
             </DarkBarButton>
           </>
-        ) : assigned.length ? (
+        )}
+        {showPhone && (assigned.length ? (
           <DarkBarButton aria-label="Números de telefone" className="whitespace-nowrap max-sm:px-2" onClick={() => setAssignOpen(true)}>
             <span className="max-sm:hidden">Números de telefone</span>
             <span className="sm:hidden">Números</span>
@@ -529,18 +535,23 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
             <CirclePlus className="h-4 w-4 text-slate-300" />
             Atribuir número
           </DarkBarButton>
-        )}
+        ))}
         {liveHere && live.phase === 'connecting' ? (
           // conectando: a ação principal cancela a tentativa (nunca um "Testar ligação" sem efeito)
           <DarkBarPrimary className="bg-red-600 hover:bg-red-700" onClick={() => live.hangup()}>
             <Loader2 className="h-4 w-4 animate-spin" />
-            {isChat ? 'Cancelar chat' : 'Cancelar ligação'}
+            {testingChat ? 'Cancelar chat' : 'Cancelar ligação'}
           </DarkBarPrimary>
         ) : liveHere ? (
           <DarkBarPrimary className="bg-red-600 hover:bg-red-700" onClick={() => live.hangup()}>
             <PhoneOff className="h-4 w-4" />
-            {isChat ? 'Encerrar chat' : 'Encerrar ligação'}
+            {testingChat ? 'Encerrar chat' : 'Encerrar ligação'}
           </DarkBarPrimary>
+        ) : isOmni ? (
+          <>
+            <DarkBarPrimary disabled={changes > 0} onClick={() => openTest('chat')}><MessageCircle className="h-4 w-4" />Testar chat</DarkBarPrimary>
+            <DarkBarPrimary disabled={changes > 0} onClick={() => openTest('voice')}><Headset className="h-4 w-4" />Testar ligação</DarkBarPrimary>
+          </>
         ) : changes > 0 ? (
           <span className="inline-flex cursor-not-allowed" title="Salve ou descarte as alterações para testar.">
             {testButton}
@@ -548,14 +559,13 @@ function AgentWorkspace({ agent, tab }: { agent: Agent; tab: AgentTab }) {
         ) : (
           testButton
         )}
-        {/* microfone só faz sentido para assistentes de voz */}
-        {!isChat && <AudioSettingsPopover />}
+        {showPhone && <AudioSettingsPopover />}
       </ActionBar>
 
-      <TestCallDialog agent={agent} open={testOpen} onOpenChange={setTestOpen} startKey={testKey} />
+      <TestCallDialog agent={isOmni ? { ...agent, type: testKind } : agent} open={testOpen} onOpenChange={setTestOpen} startKey={testKey} />
       <AssignNumberDialog agent={agent} open={assignOpen} onOpenChange={setAssignOpen} />
-      {isChat && <ManageWebchatDialog agentId={agent.id} open={webchatOpen} onOpenChange={setWebchatOpen} />}
-      {isChat && <AssistantWhatsAppDialog agentId={agent.id} open={waOpen} onOpenChange={setWaOpen} />}
+      {showChat && <ManageWebchatDialog agentId={agent.id} open={webchatOpen} onOpenChange={setWebchatOpen} />}
+      {showChat && <AssistantWhatsAppDialog agentId={agent.id} open={waOpen} onOpenChange={setWaOpen} />}
       <CreateAgentDialog open={createOpen} onOpenChange={setCreateOpen} initialType={createType} />
       <ConfirmDialog
         open={deleteOpen}

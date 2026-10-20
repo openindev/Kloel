@@ -15,7 +15,7 @@ function template(): GeneratedAssistant {
   return { companyName: '', website: '', brandColor: '#585DF5', faviconLetter: 'K', assistantName: 'Assistente', greeting: 'Olá! Como posso ajudar?', companyInfo: '', faq: [], pagesAnalyzed: 0 }
 }
 
-/** The imported page is the source. No client-side FAQ, reply, summary or provider success is generated. */
+/** Site e mídia são importados no motor. As informações (perguntas e respostas) são geradas em seguida. */
 export const realAI: AIEngine = {
   generateGenericAssistant: template,
   async generateAssistantFromWebsite(url, onProgress, context) {
@@ -27,25 +27,33 @@ export const realAI: AIEngine = {
   },
   async generateCompanyInfo(url, onProgress, context) {
     const agentId = requiredAgent(context)
-    progress(onProgress, false, 'Importando informações…')
+    progress(onProgress, false, 'Lendo o site…')
     const row = await knowledgeCommands(agentId, 'company-info').importWebsite(url)
+    progress(onProgress, false, 'Gerando informações…')
+    try { await knowledgeCommands(agentId, `faq-${row.id}`).generate(row.id) } catch { /* o texto da empresa continua disponível */ }
     progress(onProgress, true, 'Informações importadas')
     return row.content
   },
   async crawlWebsite(url, onProgress, context) {
     const agentId = requiredAgent(context)
-    progress(onProgress, false, 'Importando página…')
+    progress(onProgress, false, 'Lendo as páginas do site…')
     const row = await knowledgeCommands(agentId, 'website').importWebsite(url)
-    progress(onProgress, true, 'Página importada')
-    return { pages: 1, entries: [{ question: row.title, answer: row.content }] }
+    progress(onProgress, false, 'Gerando informações…')
+    const created = await knowledgeCommands(agentId, `faq-${row.id}`).generate(row.id)
+    const pages = row.extraction?.pageCount || 1
+    progress(onProgress, true, `${pages} ${pages === 1 ? 'página' : 'páginas'}`)
+    return { pages, entries: Array.from({ length: created }, () => ({ question: row.title, answer: '' })) }
   },
   async processDocument(file, onProgress, context) {
     const agentId = requiredAgent(context)
     if (!(file instanceof File)) throw Error('Selecione o arquivo original para enviar.')
-    progress(onProgress, false, 'Enviando documento…')
+    progress(onProgress, false, 'Enviando mídia…')
     const row = await knowledgeCommands(agentId, 'document').upload(context?.title?.trim() || file.name, file)
-    progress(onProgress, true, 'Documento importado')
-    return { entries: [{ question: row.title, answer: row.content }] }
+    progress(onProgress, false, 'Gerando informações…')
+    let created = 0
+    try { created = await knowledgeCommands(agentId, `faq-${row.id}`).generate(row.id) } catch { created = 0 }
+    progress(onProgress, true, 'Mídia importada')
+    return { entries: [{ question: row.title, answer: row.content }, ...Array.from({ length: created }, () => ({ question: row.title, answer: '' }))] }
   },
   async chatReply(agent, _knowledge, message, _history) {
     const context = captureEngineContext(), expected = engineSession.getSnapshot().data!.identity.context

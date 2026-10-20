@@ -91,8 +91,12 @@ export const AGENT_INTEGRATIONS: IntegrationSchema[] = [
     slug: 'n8n',
     name: 'n8n',
     auth: 'webhook',
-    defaultTiming: 'after',
-    fields: [{ key: 'webhookUrl', label: 'Webhook URL', type: 'url', placeholder: 'https://n8n.example.com/webhook/…', required: true }],
+    defaultTiming: 'during',
+    description: 'Durante a conversa a resposta do fluxo volta para a IA. Depois da conversa o fluxo só é avisado. O n8n também pode enviar eventos para o webhook de entrada deste assistente.',
+    fields: [
+      { key: 'webhookUrl', label: 'Webhook URL', type: 'url', placeholder: 'https://n8n.example.com/webhook/…', required: true, help: 'Cole a URL de produção do nó Webhook. No corpo JSON, cada variável (ex.: {{Interlocutor: Número de telefone}}) precisa ser o valor inteiro do campo.' },
+      { key: 'timeoutMs', label: 'Tempo limite (ms)', type: 'text', placeholder: '10000', help: 'Entre 500 e 15000. Se o fluxo não responder a tempo, a IA recebe o erro e pode tentar de novo. Um timeout não prova que o fluxo deixou de executar, por isso não há reenvio automático.' },
+    ],
   },
   {
     slug: 'notion',
@@ -100,6 +104,14 @@ export const AGENT_INTEGRATIONS: IntegrationSchema[] = [
     auth: 'oauth',
     defaultTiming: 'before',
     fields: [{ key: 'pages', label: 'Pages', type: 'textarea', placeholder: 'https://www.notion.so/…', required: true, help: 'One link per line.' }],
+  },
+  {
+    slug: 'personalizar',
+    name: 'Personalizar',
+    auth: 'apikey',
+    defaultTiming: 'during',
+    description: 'Conecte a plataforma do cliente para o assistente vender, cobrar e atualizar pedidos no chat e na ligação.',
+    fields: [],
   },
   {
     slug: 'slack',

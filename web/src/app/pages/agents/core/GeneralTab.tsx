@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { SimpleTooltip } from '@/components/ui/tooltip'
 import { useAgentDraft } from './draft'
 import { ChatHandlingSection, ChatTimeoutRow } from './ChatGeneral'
-import { FORMALITY_LANGUAGES, FORMALITY_OPTIONS } from './chatSettings'
+import { FORMALITY_LANGUAGES, FORMALITY_OPTIONS, chatSettingsOf } from './chatSettings'
+import type { AgentType } from '@/domain/types'
 import { GreetingEditor } from './GreetingEditor'
 import { GreetingRulesSheet } from './GreetingRulesSheet'
 import { VoiceAvatar, VoicePickerDialog } from './VoicePickerDialog'
@@ -83,6 +84,9 @@ export function GeneralTab({ headerActions }: { headerActions?: ReactNode }) {
 
   const nameError = issueFor('name')
   const greetingError = issueFor('greeting')
+  const type = draft.type ?? agent.type
+  const voiceSurface = type !== 'chat'
+  const chatSurface = type !== 'voice'
 
   return (
     <>
@@ -106,7 +110,22 @@ export function GeneralTab({ headerActions }: { headerActions?: ReactNode }) {
                   <FieldError>{nameError}</FieldError>
                 </div>
               </SettingsRow>
-              {agent.type === 'voice' && (
+              <SettingsRow label="Tipo" compact>
+                <Select value={type} onValueChange={(value) => {
+                  const next = value as AgentType
+                  update({ type: next, ...(next !== 'voice' && !draft.chat ? { chat: chatSettingsOf(agent) } : {}), ...(next !== 'chat' && !draft.formality ? { formality: 'custom' } : {}) })
+                }}>
+                  <SelectTrigger aria-label="Tipo de assistente" className="h-8 w-auto gap-1.5 rounded-lg text-[13px] shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="voice" className={LEFT_CHECK_ITEM}>Assistente de voz</SelectItem>
+                    <SelectItem value="chat" className={LEFT_CHECK_ITEM}>Assistente de chat</SelectItem>
+                    <SelectItem value="omni" className={LEFT_CHECK_ITEM}>Chat + Ligação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+              {voiceSurface && (
               <SettingsRow label="Voz" compact>
                 <button
                   type="button"
@@ -127,7 +146,7 @@ export function GeneralTab({ headerActions }: { headerActions?: ReactNode }) {
               )}
               <SettingsRow
                 label={
-                  agent.type === 'chat' ? (
+                  chatSurface ? (
                     <span className="inline-flex items-center gap-1.5">
                       Idioma
                       <SimpleTooltip label="Idioma padrão das respostas e da saudação. Se o cliente escrever em outro idioma, o assistente acompanha.">
@@ -155,7 +174,7 @@ export function GeneralTab({ headerActions }: { headerActions?: ReactNode }) {
                   </SelectContent>
                 </Select>
               </SettingsRow>
-              {agent.type === 'voice' && FORMALITY_LANGUAGES.has(draft.language) && (
+              {voiceSurface && FORMALITY_LANGUAGES.has(draft.language) && (
                 <SettingsRow label="Formalidade" compact>
                   <Select value={draft.formality ?? 'custom'} onValueChange={(v) => update({ formality: v as NonNullable<typeof draft.formality> })}>
                     <SelectTrigger aria-label="Formalidade" className="h-8 w-auto gap-1.5 rounded-lg text-[13px] shadow-none">
@@ -171,13 +190,13 @@ export function GeneralTab({ headerActions }: { headerActions?: ReactNode }) {
                   </Select>
                 </SettingsRow>
               )}
-              {agent.type === 'chat' && <ChatTimeoutRow />}
+              {chatSurface && <ChatTimeoutRow />}
             </SettingsCard>
           </div>
 
-          {agent.type === 'chat' && <ChatHandlingSection />}
+          {chatSurface && <ChatHandlingSection />}
 
-          {agent.type === 'voice' && (
+          {voiceSurface && (
           <div className="divide-y rounded-xl border bg-background">
             <div className="px-5 py-4">
               <div className="flex flex-col gap-2">

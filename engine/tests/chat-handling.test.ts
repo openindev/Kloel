@@ -25,6 +25,8 @@ test('settings are read per tenant from the chat assistant editor state, with th
   assert.equal(chatHandling(store, 't-a', agent.id), null, 'no editor state: previous behaviour');
   saveState(store, 't-a', agent.id, { type: 'voice', chat: { entry: { mode: 'team' } } });
   assert.equal(chatHandling(store, 't-a', agent.id), null, 'voice assistants (e.g. Joana) keep the previous behaviour');
+  saveState(store, 't-a', agent.id, { type: 'omni' });
+  assert.equal(chatHandling(store, 't-a', agent.id)?.timeoutMinutes, 60, 'chat + call uses the same chat rules');
   saveState(store, 't-a', agent.id, {});
   assert.deepEqual(chatHandling(store, 't-a', agent.id), { timeoutMinutes: 60, entry: { mode: 'ai', condition: '' }, schedule: 'always', handover: { enabled: true, mode: 'standard', custom: '' }, notifications: { enabled: false, onTeamEntry: true, onHandover: true, userIds: [] }, businessHours: null });
   saveState(store, 't-a', agent.id, { chat: { timeoutMinutes: 3, entry: { mode: 'condition', condition: '   ' }, schedule: 'weekends', handover: { enabled: 'yes', mode: 'custom', custom: '' }, notifications: { enabled: true, onTeamEntry: false, userIds: ['user-1', 'inválido!', 7, 'user-1'] } }, businessHours: OFFICE });
@@ -83,7 +85,10 @@ async function whatsapp(t: any, state: Record<string, unknown>) {
     const r = await f.app.inject({ method: 'POST', url: '/api/v1/webhooks/meta', payload: raw, headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', f.env.META_APP_SECRET).update(raw).digest('hex') } });
     assert.equal(r.statusCode, 200, r.body); clock = at + 5000;
     const message = f.store.list(f.tenant, 'messages').find(m => m.providerMessageId === id)!;
-    return { message, conversationId: String(message.conversationId), job: f.store.list(f.tenant, 'reply-jobs').find(j => j.sourceMessageId === message.id) };
+    let job = f.store.list(f.tenant, 'reply-jobs').find(j => j.sourceMessageId === message.id);
+    // dueAt is wall-clock at enqueue; the worker clock follows the fixture instant. Pull a past fixture forward so it is due without leaving the 24h window.
+    if (job && Number(job.dueAt) > clock) job = f.store.update(f.tenant, 'reply-jobs', job.id, { dueAt: clock - 1 });
+    return { message, conversationId: String(message.conversationId), job };
   }
   const conversation = (id: string) => f.store.get(f.tenant, 'conversations', id)!;
   /** Exactly what the Inbox "Devolver ao assistente" sends for WhatsApp (web/src/services/casca/conversation-actions.ts). */

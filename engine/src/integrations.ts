@@ -13,7 +13,7 @@ import { currentRequestActor } from './memberships/access.js';
 import { MembershipError } from './memberships/service.js';
 import { registerIntegrationConfigurations } from './integrations/configuration.js';
 
-export {executeRegisteredIntegration,executeAgentIntegration,integrationAgentTools} from './integrations/service.js';
+export {executeRegisteredIntegration,executeAgentIntegration,integrationAgentTools,assignedIntegrationTools} from './integrations/service.js';
 export {baserowAgentTools,executeAgentBaserow} from './integrations/baserow.js';
 export {airtableAgentTools,executeAgentAirtable} from './integrations/airtable.js';
 const id=(req:FastifyRequest)=>z.object({id:z.string().uuid()}).parse(req.params).id;

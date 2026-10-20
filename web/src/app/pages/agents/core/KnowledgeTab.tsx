@@ -147,7 +147,7 @@ export function KnowledgeTab() {
                       </span>
                     )}
                     <span className="rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground" title={src.type === 'document' ? formatBytes(src.sizeBytes) : undefined}>
-                      {src.type === 'website' ? `${src.pages ?? 0} ${src.pages === 1 ? 'página' : 'páginas'}` : 'PDF'}
+                      {src.type === 'website' ? `${src.pages ?? 0} ${src.pages === 1 ? 'página' : 'páginas'}` : src.sizeBytes ? formatBytes(src.sizeBytes) : 'Mídia'}
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -156,6 +156,13 @@ export function KnowledgeTab() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => {
+                          void knowledgeCommands(agent.id, `faq-${src.id}`).generate(src.id)
+                            .then((n) => toast.success(n ? `${n} informações atualizadas` : 'Nenhuma informação nova'))
+                            .catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'Não foi possível gerar as informações'))
+                        }}>
+                          Gerar informações
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => setToDelete(src)}>
                           Excluir
                         </DropdownMenuItem>
@@ -184,7 +191,7 @@ export function KnowledgeTab() {
                   <Globe /> Site
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setDocOpen(true)}>
-                  <Upload /> Documentos
+                  <Upload /> Mídias
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

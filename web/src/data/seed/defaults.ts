@@ -48,7 +48,7 @@ export function makeAgent(orgId: string, name: string, type: AgentType, companyN
     orgId,
     name,
     type,
-    channels: type === 'voice' ? ['phone'] : ['whatsapp', 'webchat'],
+    channels: type === 'voice' ? ['phone'] : type === 'omni' ? ['phone', 'whatsapp', 'webchat'] : ['whatsapp', 'webchat'],
     voiceId: 'camila',
     language: 'pt-BR',
     greeting: `Olá, aqui é a ${name} da ${companyName}. Como posso te ajudar?`,
@@ -69,9 +69,11 @@ export function makeAgent(orgId: string, name: string, type: AgentType, companyN
     businessHours: defaultBusinessHours(),
     prompt: type === 'voice'
       ? `Você é a ${name} – uma assistente telefônica que responde às perguntas de forma amigável.`
-      : `Você é a ${name} – uma assistente de chat que responde às perguntas de forma amigável.`,
+      : type === 'omni'
+        ? `Você é a ${name} – a mesma assistente no chat e na ligação, com a mesma memória e o mesmo tom.`
+        : `Você é a ${name} – uma assistente de chat que responde às perguntas de forma amigável.`,
     technical: defaultTechnical(),
-    webchat: type === 'chat' ? { color: '#585DF5', position: 'right', title: name, welcome: `Olá! Eu sou a ${name}. Como posso ajudar?` } : undefined,
+    webchat: type === 'voice' ? undefined : { color: '#585DF5', position: 'right', title: name, welcome: `Olá! Eu sou a ${name}. Como posso ajudar?` },
     createdAt: now,
     updatedAt: now,
     ...overrides,

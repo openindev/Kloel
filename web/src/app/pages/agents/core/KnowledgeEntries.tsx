@@ -13,7 +13,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(naviga
 
 function sourceMeta(e: KnowledgeEntry) {
   if (e.source === 'website') return { Icon: Globe, label: e.sourceLabel ?? 'Site' }
-  if (e.source === 'auto') return { Icon: Sparkles, label: 'Gerado automaticamente' }
+  if (e.source === 'auto') return { Icon: Sparkles, label: e.sourceLabel ? `Gerado automaticamente · ${e.sourceLabel}` : 'Gerado automaticamente' }
   if (e.source === 'document') return { Icon: FileText, label: e.sourceLabel ?? 'Documento' }
   return { Icon: PenLine, label: 'Adicionado manualmente' }
 }

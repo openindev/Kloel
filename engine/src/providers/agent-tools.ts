@@ -10,7 +10,9 @@ import { createDomainAppointment, DomainError, listCalendarSlots } from '../doma
 import { retrieveKnowledge } from '../knowledge.js';
 import { externalCalendarTools, executeExternalCalendarTool } from '../oauth/agent-calendar.js';
 import type { Actor } from '../oauth/access.js';
-import { executeAgentIntegration, integrationAgentTools, baserowAgentTools, executeAgentBaserow, airtableAgentTools, executeAgentAirtable } from '../integrations.js';
+import { executeAgentIntegration, integrationAgentTools, assignedIntegrationTools, baserowAgentTools, executeAgentBaserow, airtableAgentTools, executeAgentAirtable } from '../integrations.js';
+import { commercialAgentTools, executeCommercialTool } from '../commercial.js';
+import { resolveMembershipActor } from '../memberships/service.js';
 import { sendPinned, type IntegrationTransport } from '../integrations/transport.js';
 import { resolveSessionActor } from '../memberships/service.js';
 import { hasPermission } from '../memberships/permissions.js';
@@ -51,7 +53,8 @@ export function agentRuntimeTools(store: Store, context: AgentContext): ToolDefi
   if (!operatorAuthorized(store, context)) return [];
   const agent = store.get(context.tenantId, 'agents', context.agent.id);
   if (!agent || agent.status === 'paused') return [];
-  return [...agentTools(agent, context.trustedOperator, context.actor), ...sheetAgentTools(store, context.sheetTurn), ...bookingAgentTools(store, context.bookingTurn), ...calendlyAgentTools(store, context.calendlyTurn), ...(context.trustedOperator ? [...integrationAgentTools(store, { ...context, agent }), ...baserowAgentTools(store, { ...context, agent }), ...airtableAgentTools(store, { ...context, agent, assertLive: () => { if (!operatorAuthorized(store, context)) throw new DomainError(403, 'operator_session_revoked', 'Sessão revogada.'); } })] : [])].filter(t => !((managedBookingMode(store, context.bookingTurn, context.bookingSurface === 'private_chat' ? { tenantId: context.tenantId, agentId: context.agent.id } : undefined) || managedCalendlyMode(store, context.calendlyTurn, context.bookingSurface === 'private_chat' ? { tenantId: context.tenantId, agentId: context.agent.id } : undefined)) && bookingMutators.has(t.name))).slice(0, 64);
+  const integrations = context.trustedOperator ? integrationAgentTools(store, { ...context, agent }) : assignedIntegrationTools(store, context.tenantId, agent.id);
+  return [...agentTools(agent, context.trustedOperator, context.actor), ...sheetAgentTools(store, context.sheetTurn), ...bookingAgentTools(store, context.bookingTurn), ...calendlyAgentTools(store, context.calendlyTurn), ...integrations, ...commercialAgentTools(store, context.tenantId, agent.id), ...(context.trustedOperator ? [...baserowAgentTools(store, { ...context, agent }), ...airtableAgentTools(store, { ...context, agent, assertLive: () => { if (!operatorAuthorized(store, context)) throw new DomainError(403, 'operator_session_revoked', 'Sessão revogada.'); } })] : [])].filter(t => !((managedBookingMode(store, context.bookingTurn, context.bookingSurface === 'private_chat' ? { tenantId: context.tenantId, agentId: context.agent.id } : undefined) || managedCalendlyMode(store, context.calendlyTurn, context.bookingSurface === 'private_chat' ? { tenantId: context.tenantId, agentId: context.agent.id } : undefined)) && bookingMutators.has(t.name))).slice(0, 64);
 }
 
 export async function executeAgentTool(store: Store, context: AgentContext, call: { id: string; name: string; arguments: string }, options: { integrationTransport?: IntegrationTransport } = {}): Promise<Record<string, unknown>> {
@@ -107,8 +110,12 @@ export async function executeAgentTool(store: Store, context: AgentContext, call
       const response = await executeAgentBaserow(store, { tenantId: context.tenantId, agent: context.agent, actor: context.actor }, baserow.id, action, args, key, transport);
       guardBaserow();
       result = action === 'create' ? response : { ok: true, ...response };
+    } else if (call.name === 'comercial_acao') {
+      result = await executeCommercialTool(store, context.tenantId, context.agent.id, args, { transport: options.integrationTransport });
     } else if (integration) {
-      result = await executeAgentIntegration(store, { tenantId: context.tenantId, agent: context.agent, actor: context.actor, assertAccess: assertLive, recordResult }, integration.id, args, key, options.integrationTransport);
+      const owner = context.actor ?? resolveMembershipActor(store, String(integration.configuredBy ?? ''), context.tenantId);
+      if (!owner) result = { ok: false, error: 'integration_owner_unavailable' };
+      else result = await executeAgentIntegration(store, { tenantId: context.tenantId, agent: context.agent, actor: owner, assertAccess: assertLive, recordResult }, integration.id, args, key, options.integrationTransport);
     } else if (call.name.startsWith('external_')) {
       result = await executeExternalCalendarTool(store, { tenantId: context.tenantId, agent: context.agent, actor: context.actor, assertAccess: assertLive, recordResult }, call.name, args, key);
     } else if (call.name === 'lookup_contact') {

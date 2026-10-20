@@ -10,11 +10,11 @@ import { TIMEOUT_MAX, TIMEOUT_MIN, chatSettingsOf } from './chatSettings'
  */
 export type DraftFields = Pick<
   Agent,
-  'name' | 'voiceId' | 'language' | 'formality' | 'greeting' | 'greetingPersonalized' | 'greetingMode' | 'greetingRules' | 'rules' | 'prompt' | 'technical' | 'chat'
+  'name' | 'type' | 'voiceId' | 'language' | 'formality' | 'greeting' | 'greetingPersonalized' | 'greetingMode' | 'greetingRules' | 'rules' | 'prompt' | 'technical' | 'chat'
 >
 
 export const DRAFT_KEYS: (keyof DraftFields)[] = [
-  'name', 'voiceId', 'language', 'formality', 'greeting', 'greetingPersonalized', 'greetingMode', 'greetingRules', 'rules', 'prompt', 'technical', 'chat',
+  'name', 'type', 'voiceId', 'language', 'formality', 'greeting', 'greetingPersonalized', 'greetingMode', 'greetingRules', 'rules', 'prompt', 'technical', 'chat',
 ]
 /** Chaves contadas campo a campo (um item por subcampo alterado). */
 const NESTED: (keyof DraftFields)[] = ['rules', 'technical', 'chat']
@@ -25,8 +25,8 @@ export function pickDraft(a: Agent): DraftFields {
   const out = {} as Record<string, unknown>
   for (const k of DRAFT_KEYS) out[k] = a[k] === undefined ? undefined : JSON.parse(JSON.stringify(a[k]))
   // campos novos com padrão materializado (dados antigos sem o campo não contam como "alteração")
-  if (a.type === 'chat') out.chat = chatSettingsOf(a)
-  else out.formality = a.formality ?? 'custom'
+  if (a.type !== 'voice') out.chat = chatSettingsOf(a)
+  if (a.type !== 'chat') out.formality = a.formality ?? 'custom'
   return out as DraftFields
 }
 
@@ -59,7 +59,7 @@ export function validateDraft(d: DraftFields, type: Agent['type']): DraftIssue[]
   else if (d.name.trim().length > 60) issues.push({ tab: 'general', field: 'name', message: 'O nome pode ter no máximo 60 caracteres.' })
   // chat: a saudação é a "Mensagem de saudação" do Webchat (Gerenciar Webchat) e pode ficar vazia (usa o padrão do idioma — WC-09)
   if (type !== 'chat' && !d.greeting.replace(/\{\{[^}]*\}\}/g, 'x').trim()) issues.push({ tab: 'general', field: 'greeting', message: 'A mensagem inicial é obrigatória.' })
-  if (type === 'chat' && d.chat) {
+  if (type !== 'voice' && d.chat) {
     const c = d.chat
     if (!Number.isInteger(c.timeoutMinutes) || c.timeoutMinutes < TIMEOUT_MIN || c.timeoutMinutes > TIMEOUT_MAX)
       issues.push({ tab: 'general', field: 'chat.timeout', message: 'O tempo limite deve ficar entre 5 minutos e 7 dias.' })
