@@ -15,15 +15,29 @@ const CATEGORIES: [RegExp, string][] = [
 
 export type FaqEntry = { question: string; answer: string; category: string; origin: string };
 
+function cleanSource(text: string) {
+  return text.replace(/o texto extra[ií]do da imagem é\s*:/gi, '\n').replace(/descri[cç][aã]o da imagem\s*:[^\n]*/gi, '\n').replace(/transcri[cç][aã]o\s*:/gi, '\n');
+}
+function factsOf(text: string) {
+  return cleanSource(text).split(/\n+|(?<=[.!?])\s+/).map(part => part.replace(/\s+/g, ' ').trim()).filter(part => part.length >= 12 && (/\d|[?]/.test(part) || part.length >= 40)).slice(0, 24);
+}
+function questionFor(fact: string) {
+  if (/troca|devolu/i.test(fact) && /\d+\s*dias/i.test(fact)) return 'Qual o prazo para troca?';
+  if (/frete/i.test(fact) && /gr[aá]tis|gratuit/i.test(fact)) return 'Tem frete grátis?';
+  if (/hor[aá]rio|segunda a sexta|atendimento/i.test(fact)) return 'Qual o horário de atendimento?';
+  if (/r\$|pre[cç]o|custa|plano/i.test(fact)) return 'Qual o preço?';
+  if (fact.endsWith('?')) return fact.slice(0, 180);
+  return `O que a fonte informa sobre: ${fact.replace(/[.?!]+$/, '').slice(0, 120)}?`;
+}
+function answerFor(fact: string) {
+  const days = fact.match(/(\d+)\s*dias/i);
+  if (/troca|devolu/i.test(fact) && days) return `Até ${days[1]} dias após a entrega.`;
+  const money = fact.match(/R\$\s*\d+(?:[.,]\d+)*/);
+  if (/frete/i.test(fact) && /gr[aá]tis|gratuit/i.test(fact) && money) return `Sim, para compras acima de ${money[0].replace(/\s+/g, ' ')}.`;
+  return fact.slice(0, 2000);
+}
 export function draftFaq(text: string, origin: string): FaqEntry[] {
-  const chunks = text.split(/\n{2,}/).map(part => part.replace(/[ \t]+/g, ' ').trim()).filter(part => part.length >= 40);
-  const out: FaqEntry[] = [];
-  for (const chunk of chunks.slice(0, 24)) {
-    const sentence = (chunk.split(/(?<=[.!?])\s+/)[0] || chunk).replace(/\s+/g, ' ').trim().slice(0, 140);
-    const topic = sentence.replace(/[.?!]+$/, '');
-    const category = CATEGORIES.find(([pattern]) => pattern.test(chunk))?.[1] ?? 'Geral';
-    out.push({ question: topic.endsWith('?') ? topic : `O que a fonte informa sobre: ${topic}?`, answer: chunk.slice(0, 2000), category, origin });
-  }
+  const out = factsOf(text).map(fact => ({ question: questionFor(fact), answer: answerFor(fact), category: CATEGORIES.find(([pattern]) => pattern.test(fact))?.[1] ?? 'Geral', origin }));
   if (!out.length && text.trim().length >= 20) out.push({ question: 'O que esta fonte informa?', answer: text.trim().slice(0, 2000), category: 'Geral', origin });
   return out;
 }
@@ -34,7 +48,7 @@ async function modelFaq(text: string, origin: string, options: { fetch?: typeof 
   if (!key || !model) return null;
   const call = options.fetch ?? globalThis.fetch;
   try {
-    const response = await call('https://api.openai.com/v1/responses', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, store: false, max_output_tokens: 4000, instructions: 'Extraia perguntas e respostas factuais em português do Brasil a partir do texto. Não invente. Responda só JSON: {"items":[{"question":"","answer":"","category":"Preços e planos|Contato|Políticas|Pagamento|Atendimento|Geral"}]}. No máximo 24 itens.', input: [{ role: 'user', content: text.slice(0, 24000) }] }) });
+    const response = await call('https://api.openai.com/v1/responses', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, store: false, max_output_tokens: 4000, instructions: 'Extraia várias perguntas e respostas factuais em português do Brasil, uma por fato (prazo, frete, horário, preço, contato). A resposta é curta e direta, sem despejar o texto bruto. Não invente. Responda só JSON: {"items":[{"question":"","answer":"","category":"Preços e planos|Contato|Políticas|Pagamento|Atendimento|Geral"}]}. No máximo 24 itens.', input: [{ role: 'user', content: text.slice(0, 24000) }] }) });
     if (!response.ok) return null;
     const data = await response.json() as { output?: { type?: string; content?: { type?: string; text?: string }[] }[] };
     const raw = (data.output ?? []).flatMap(item => item.type === 'message' ? item.content ?? [] : []).filter(part => part.type === 'output_text').map(part => part.text ?? '').join('\n');

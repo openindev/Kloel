@@ -6,6 +6,7 @@ import { docxText } from '../src/media-extract.js';
 import { draftFaq, generateFaqForSource } from '../src/knowledge-faq.js';
 import { registerIngestion, sameOriginLinks } from '../src/ingestion.js';
 import { registerDomains } from '../src/domains.js';
+import { registerKnowledge } from '../src/knowledge.js';
 import { seedMember } from './fixtures/membership.js';
 
 function storedZip(name: string, data: Buffer) {
@@ -58,5 +59,48 @@ test('upload accepts docx, rejects an image without the provider, and a site cra
     if (previousKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousKey;
     assert.ok(faq.created >= 1);
     assert.ok(faq.items.every(item => Array.isArray(item.tags) && item.tags.includes('auto')));
+  } finally { await app.close(); store.close(); }
+});
+
+test('image, audio and video with extraction proof index, and the poster becomes separate answers', async () => {
+  const poster = 'Trocas em ate 30 dias apos a entrega.\nFrete gratis acima de R$ 199.';
+  const spoken = 'Nosso horário de atendimento é de segunda a sexta, das nove às dezoito horas.';
+  const faq = draftFaq(poster, 'politica-trocas.png');
+  assert.ok(faq.some(item => item.question === 'Qual o prazo para troca?' && item.answer === 'Até 30 dias após a entrega.'));
+  assert.ok(faq.some(item => item.question === 'Tem frete grátis?' && item.answer === 'Sim, para compras acima de R$ 199.'));
+  assert.ok(draftFaq(spoken, 'horario.mp3').some(item => item.question === 'Qual o horário de atendimento?'));
+  const mediaFetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('/chat/completions')) return Response.json({ choices: [{ message: { content: poster } }] });
+    if (url.includes('/audio/transcriptions')) return Response.json({ text: spoken });
+    throw Error(`unexpected media request ${url}`);
+  }) as typeof fetch;
+  const store = new Store(); const app = Fastify();
+  try {
+    app.addHook('preHandler', async request => { request.actor = { userId: 'owner', tenantId: 'tenant-a', role: 'owner' }; seedMember(store, request.actor); });
+    await registerDomains(app, store);
+    await registerIngestion(app, store, {}, { fetch: mediaFetch, apiKey: 'test-not-a-real-key' });
+    await registerKnowledge(app, store, { apiKey: 'test-not-a-real-key', fetchImpl: (async (_url, init) => {
+      const body = JSON.parse(String(init?.body)) as { input: unknown[] };
+      return Response.json({ data: body.input.map((_, index) => ({ index, embedding: [1, 0, 0] })), usage: { prompt_tokens: 1, total_tokens: 1 } });
+    }) as typeof fetch });
+    const files = [
+      { title: 'Política', filename: 'politica-trocas.png', mimeType: 'image/png', bytes: 'png-bytes' },
+      { title: 'Horário', filename: 'horario.mp3', mimeType: 'audio/mpeg', bytes: 'mp3-bytes' },
+      { title: 'Vídeo', filename: 'loja.mov', mimeType: 'video/quicktime', bytes: 'mov-bytes' },
+    ];
+    for (const file of files) {
+      const upload = await app.inject({ method: 'POST', url: '/api/v1/knowledge/upload', payload: { title: file.title, filename: file.filename, mimeType: file.mimeType, base64: Buffer.from(file.bytes).toString('base64') } });
+      assert.equal(upload.statusCode, 201, upload.body);
+      const indexed = await app.inject({ method: 'POST', url: `/api/v1/knowledge/${upload.json().id}/ingest`, payload: {} });
+      assert.equal(indexed.statusCode, 200, indexed.body);
+      assert.equal(indexed.json().status, 'indexed');
+      assert.equal(store.get('tenant-a', 'knowledge', upload.json().id)?.indexed, true);
+    }
+    const image = store.list('tenant-a', 'knowledge').find(row => (row.document as { filename?: string } | undefined)?.filename === 'politica-trocas.png');
+    const generated = await generateFaqForSource(store, 'tenant-a', String(image?.id), { apiKey: null });
+    assert.ok(generated.items.some(item => String(item.title).includes('prazo para troca')));
+    assert.ok(generated.items.some(item => String(item.content).includes('R$ 199')));
+    assert.ok(generated.items.every(item => Array.isArray(item.tags) && item.tags.includes('auto')));
   } finally { await app.close(); store.close(); }
 });

@@ -19,7 +19,7 @@ import { FieldError, OpProgress } from './ui'
 export const SITE_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/.*)?$/i
 export const normalizeSite = (url: string) => url.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
 export const MAX_MEDIA = 10 * 1024 * 1024
-const MEDIA_EXT = /\.(pdf|txt|md|csv|json|docx|png|jpe?g|webp|gif|mp3|wav|m4a|ogg|flac|mp4|webm|mpeg)$/i
+const MEDIA_EXT = /\.(pdf|txt|md|csv|json|docx|png|jpe?g|webp|gif|mp3|wav|m4a|ogg|flac|mp4|webm|mpeg|mov)$/i
 
 export function formatBytes(n?: number) {
   if (!n && n !== 0) return ''
@@ -213,7 +213,7 @@ export function DocumentSheet({ agent, open, onOpenChange }: { agent: Agent; ope
             <li>PDF escaneado sem texto selecionável não é lido. Envie a página como imagem para extrair o texto.</li>
           </ul>
         </div>
-        <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv,.json,.docx,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.ogg,.flac,.mp4,.webm,.mpeg,application/pdf,text/plain,image/*,audio/*,video/*" className="hidden" data-testid="document-file" onChange={(e) => void pick(e.target.files?.[0] ?? undefined).finally(() => (e.target.value = ''))} />
+        <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv,.json,.docx,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.mov,.mpeg,application/pdf,text/plain,image/*,audio/*,video/*" className="hidden" data-testid="document-file" onChange={(e) => void pick(e.target.files?.[0] ?? undefined).finally(() => (e.target.value = ''))} />
         {file ? (
           <div className="flex items-center gap-3 rounded-lg border p-3">
             <FileText className="size-5 shrink-0 text-muted-foreground" />

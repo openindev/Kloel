@@ -5,6 +5,7 @@ import { createHmac } from 'node:crypto';
 import Fastify from 'fastify';
 import { Store } from '../src/store.js';
 import { rejectCardData, registerCommercial, executeCommercial } from '../src/commercial.js';
+import { unseal } from '../src/oauth/crypto.js';
 import { seedMember } from './fixtures/membership.js';
 import { DomainError } from '../src/domains.js';
 
@@ -47,6 +48,58 @@ test('personalizar stores no card data and creates a payment link', async () => 
     assert.equal(inbound.statusCode, 202, inbound.body);
     const leaked = store.list(actor.tenantId, 'commercial-events').some(row => JSON.stringify(row).includes(PAN) || JSON.stringify(row).includes('sk_test_fixture'));
     assert.equal(leaked, false);
+  } finally {
+    await app.close(); store.close();
+    if (previous === undefined) delete process.env.OAUTH_ENCRYPTION_KEY; else process.env.OAUTH_ENCRYPTION_KEY = previous;
+  }
+});
+
+test('commercial actions keep the typed line, a test is persisted, and delete removes the sealed secret', async () => {
+  const previous = process.env.OAUTH_ENCRYPTION_KEY;
+  process.env.OAUTH_ENCRYPTION_KEY = randomBytes(32).toString('base64');
+  const store = new Store(); const app = Fastify();
+  const actor = { userId: 'owner', tenantId: 'tenant-a', role: 'owner' as const };
+  let status = 200;
+  try {
+    app.addHook('preHandler', async request => { request.actor = actor; seedMember(store, request.actor); });
+    const agent = store.create(actor.tenantId, 'agents', { name: 'Ana', status: 'active' });
+    await registerCommercial(app, store, { resolve: async () => [{ address: '93.184.216.34', family: 4 }], request: async () => ({ status, headers: {}, body: Buffer.from('pong') }) });
+    const line = 'GET /anything/orders | Consulta pedidos | não';
+    const saved = await app.inject({ method: 'PUT', url: `/api/v1/agents/${agent.id}/commercial`, payload: {
+      platformName: 'Loja', baseUrl: 'https://api.loja.example/', authType: 'bearer', secret: 'fixture-platform-secret',
+      actions: [{ name: 'GET /anything/orders', method: 'GET', path: '/anything/orders', description: 'Consulta pedidos', confirm: false, confirmLabel: 'não', sourceLine: line }],
+    } });
+    assert.equal(saved.statusCode, 200, saved.body);
+    const action = saved.json().profile.actions[0];
+    assert.equal(action.sourceLine, line);
+    assert.equal(action.confirm, false);
+    assert.equal(action.confirmLabel, 'não');
+    assert.equal(action.method, 'GET');
+    assert.equal(action.path, '/anything/orders');
+    const tested = await app.inject({ method: 'POST', url: `/api/v1/agents/${agent.id}/commercial/test`, payload: {} });
+    assert.equal(tested.statusCode, 200, tested.body);
+    assert.equal(tested.json().ok, true);
+    assert.equal(tested.json().status, 200);
+    const loaded = await app.inject({ method: 'GET', url: `/api/v1/agents/${agent.id}/commercial` });
+    assert.equal(loaded.json().profile.lastTest.ok, true);
+    assert.equal(typeof loaded.json().profile.lastTest.at, 'string');
+    status = 500;
+    const failed = await app.inject({ method: 'POST', url: `/api/v1/agents/${agent.id}/commercial/test`, payload: {} });
+    assert.equal(failed.json().ok, false);
+    assert.equal(failed.json().detail, 'HTTP 500');
+    const again = await app.inject({ method: 'PUT', url: `/api/v1/agents/${agent.id}/commercial`, payload: {
+      platformName: 'Loja', baseUrl: 'https://api.loja.example/', authType: 'bearer', actions: saved.json().profile.actions,
+    } });
+    assert.equal(again.json().profile.lastTest.ok, false);
+    const row = store.list(actor.tenantId, 'commercial-profiles')[0];
+    const sealed = String(row.encryptedSecrets);
+    assert.equal(unseal<{ secret?: string }>(sealed, `${actor.tenantId}:${row.id}:commercial`).secret, 'fixture-platform-secret');
+    const removed = await app.inject({ method: 'DELETE', url: `/api/v1/agents/${agent.id}/commercial` });
+    assert.equal(removed.statusCode, 200, removed.body);
+    assert.equal(store.list(actor.tenantId, 'commercial-profiles').length, 0);
+    assert.equal(JSON.stringify(store.list(actor.tenantId, 'commercial-profiles')).includes(sealed), false);
+    const gone = await app.inject({ method: 'GET', url: `/api/v1/agents/${agent.id}/commercial` });
+    assert.deepEqual(gone.json(), { configured: false });
   } finally {
     await app.close(); store.close();
     if (previous === undefined) delete process.env.OAUTH_ENCRYPTION_KEY; else process.env.OAUTH_ENCRYPTION_KEY = previous;

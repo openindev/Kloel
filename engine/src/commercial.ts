@@ -13,7 +13,10 @@ const COLLECTION = 'commercial-profiles';
 const EVENTS = 'commercial-events';
 const secretContext = (tenantId: string, id: string) => `${tenantId}:${id}:commercial`;
 type Secrets = { secret?: string; username?: string; clientId?: string; tokenUrl?: string; pagarmeSecret?: string; inboundSecret: string };
-const actionSchema = z.object({ name: z.string().trim().min(1).max(80), method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('POST'), path: z.string().trim().min(1).max(300), description: z.string().max(500).default(''), confirm: z.boolean().default(false) }).strict();
+const actionSchema = z.object({
+  name: z.string().trim().min(1).max(80), method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('POST'), path: z.string().trim().min(1).max(300),
+  description: z.string().max(500).default(''), confirm: z.boolean().default(false), confirmLabel: z.string().max(20).optional(), sourceLine: z.string().max(600).optional(),
+}).strict();
 const rulesSchema = z.object({
   maxDiscountPercent: z.number().min(0).max(100).default(0),
   tiers: z.array(z.object({ days: z.number().int().min(0).max(3650), percent: z.number().min(0).max(100) }).strict()).max(12).default([]),
@@ -72,7 +75,7 @@ export function publicProfile(row: Entity) {
   try { secrets = openSecrets(row); } catch { secrets = undefined; }
   return {
     id: row.id, agentId: row.agentId, platformName: row.platformName, baseUrl: row.baseUrl, authType: row.authType, apiKeyHeader: row.apiKeyHeader ?? 'X-Api-Key',
-    actions: row.actions ?? [], rules, secretConfigured: !!secrets?.secret, pagarme: { accountId: (row.pagarme as { accountId?: string } | undefined)?.accountId ?? '', mode: (row.pagarme as { mode?: string } | undefined)?.mode ?? 'test', configured: !!secrets?.pagarmeSecret },
+    actions: row.actions ?? [], rules, secretConfigured: !!secrets?.secret, lastTest: row.lastTest ?? null, pagarme: { accountId: (row.pagarme as { accountId?: string } | undefined)?.accountId ?? '', mode: (row.pagarme as { mode?: string } | undefined)?.mode ?? 'test', configured: !!secrets?.pagarmeSecret },
     inboundPath: `/api/v1/commercial/inbound/${row.tenantId}/${row.agentId}`, inboundConfigured: !!secrets?.inboundSecret,
   };
 }
@@ -265,7 +268,7 @@ function saveProfile(store: Store, tenantId: string, agentId: string, userId: st
   };
   if (!secrets.secret && input.authType !== 'api_key') { /* api key may be added later; oauth and bearer need a secret on first save */ }
   if (!existing && !secrets.secret) throw new DomainError(422, 'secret_required', 'Informe a credencial da plataforma.');
-  const record = { agentId, platformName: input.platformName, baseUrl: input.baseUrl, authType: input.authType, apiKeyHeader: input.apiKeyHeader || 'X-Api-Key', actions: input.actions, rules: rulesSchema.parse(input.rules ?? {}), pagarme: { accountId: input.pagarme?.accountId ?? (existing?.pagarme as { accountId?: string } | undefined)?.accountId ?? '', mode: input.pagarme?.mode ?? (existing?.pagarme as { mode?: string } | undefined)?.mode ?? 'test' }, configuredBy: userId };
+  const record = { agentId, platformName: input.platformName, baseUrl: input.baseUrl, authType: input.authType, apiKeyHeader: input.apiKeyHeader || 'X-Api-Key', actions: input.actions, rules: rulesSchema.parse(input.rules ?? {}), lastTest: existing?.lastTest ?? null, pagarme: { accountId: input.pagarme?.accountId ?? (existing?.pagarme as { accountId?: string } | undefined)?.accountId ?? '', mode: input.pagarme?.mode ?? (existing?.pagarme as { mode?: string } | undefined)?.mode ?? 'test' }, configuredBy: userId };
   return store.transaction(() => {
     const row = existing ? store.update(tenantId, COLLECTION, String(existing.id), record)! : store.create(tenantId, COLLECTION, { ...record, encryptedSecrets: '' });
     let encrypted: string;
@@ -286,7 +289,7 @@ function wrapper(fn: (request: FastifyRequest, reply: FastifyReply) => unknown) 
   };
 }
 
-export async function registerCommercial(app: FastifyInstance, store: Store): Promise<void> {
+export async function registerCommercial(app: FastifyInstance, store: Store, transport?: IntegrationTransport): Promise<void> {
   app.get('/api/v1/agents/:id/commercial', wrapper(async request => {
     const actor = requireRequestPermission(store, request, 'integrations:manage');
     const row = profileOf(store, actor.tenantId, String((request.params as { id: string }).id));
@@ -307,9 +310,17 @@ export async function registerCommercial(app: FastifyInstance, store: Store): Pr
     if (!row) throw new DomainError(404, 'commercial_not_configured', 'Salve a integração antes de testar.');
     const secrets = openSecrets(row);
     const token = row.authType === 'oauth2' ? await oauthToken(secrets) : undefined;
-    const sent = await deliver(String(row.baseUrl), { method: 'GET', headers: authHeaders(row, secrets, token) }, 8000);
+    const sent = await deliver(String(row.baseUrl), { method: 'GET', headers: authHeaders(row, secrets, token) }, 8000, transport);
     const ok = sent.response.status >= 200 && sent.response.status < 400;
-    return { ok, status: sent.response.status };
+    const lastTest = { at: new Date().toISOString(), ok, status: sent.response.status, detail: `HTTP ${sent.response.status}` };
+    const saved = store.update(actor.tenantId, COLLECTION, String(row.id), { lastTest });
+    return { ok, status: sent.response.status, at: lastTest.at, detail: lastTest.detail, profile: saved ? publicProfile(saved) : publicProfile(row) };
+  }));
+  app.delete('/api/v1/agents/:id/commercial', wrapper(async request => {
+    const actor = requireRequestPermission(store, request, 'integrations:manage');
+    const row = profileOf(store, actor.tenantId, String((request.params as { id: string }).id));
+    if (row) store.remove(actor.tenantId, COLLECTION, String(row.id));
+    return { ok: true };
   }));
   await app.register(async scope => {
     scope.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {

@@ -1,4 +1,5 @@
-import { captureEngineContext } from '../engine/session'
+import type { Agent } from '@/domain/types'
+import { captureEngineContext, type EngineContext } from '../engine/session'
 
 export type CommercialProfile = {
   platformName: string
@@ -10,6 +11,7 @@ export type CommercialProfile = {
   secretConfigured: boolean
   pagarme: { accountId: string; mode: 'test' | 'live'; configured: boolean }
   inboundPath: string
+  lastTest?: { at: string; ok: boolean; status: number; detail: string } | null
 }
 
 function client() { return captureEngineContext('integrations:manage') }
@@ -30,7 +32,32 @@ export async function saveCommercial(agentId: string, body: unknown) {
 
 export async function testCommercial(agentId: string) {
   const context = client()
-  const raw = await context.request<{ ok: boolean; status: number }>(`/agents/${agentId}/commercial/test`, { method: 'POST', body: {}, timeoutMs: 20000 })
+  const raw = await context.request<{ ok: boolean; status: number; detail?: string; at?: string }>(`/agents/${agentId}/commercial/test`, { method: 'POST', body: {}, timeoutMs: 20000 })
+  context.assertCurrent()
+  return raw
+}
+
+export async function deleteCommercial(agentId: string) {
+  const context = client()
+  await context.request(`/agents/${agentId}/commercial`, { method: 'DELETE' })
+  context.assertCurrent()
+}
+
+export async function hydrateCommercial(context: EngineContext, agents: Agent[]): Promise<Agent[]> {
+  return Promise.all(agents.map(async agent => {
+    if (!agent.integrations.some(item => item.integration === 'personalizar')) return agent
+    try {
+      const raw = await context.request<{ configured: boolean; profile?: CommercialProfile }>(`/agents/${agent.id}/commercial`)
+      const test = raw.profile?.lastTest
+      if (!test?.at) return agent
+      return { ...agent, integrations: agent.integrations.map(item => item.integration === 'personalizar' ? { ...item, connected: test.ok === true, lastTest: { ok: test.ok, at: test.at, detail: test.detail } } : item) }
+    } catch { return agent }
+  }))
+}
+
+export async function probeWebhook(url: string) {
+  const context = client()
+  const raw = await context.request<{ ok: boolean; status: number; body: string }>('/integrations/webhook-probe', { method: 'POST', body: { url }, timeoutMs: 20000 })
   context.assertCurrent()
   return raw
 }

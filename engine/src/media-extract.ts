@@ -3,7 +3,7 @@ import { DomainError } from './domains.js';
 
 const IMAGE = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const AUDIO = new Set(['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/webm', 'audio/flac', 'audio/x-m4a']);
-const VIDEO = new Set(['video/mp4', 'video/webm', 'video/mpeg']);
+const VIDEO = new Set(['video/mp4', 'video/webm', 'video/mpeg', 'video/quicktime']);
 export const MEDIA_MIME = [
   'application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'application/json',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -52,7 +52,7 @@ export async function describeMedia(bytes: Buffer, mime: string, filename: strin
   if (IMAGE.has(mime)) {
     const model = options.model === undefined ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : options.model;
     if (!model) throw new DomainError(422, 'media_provider_unavailable', 'Defina OPENAI_MODEL para descrever imagens.');
-    const response = await call('https://api.openai.com/v1/chat/completions', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1200, messages: [{ role: 'user', content: [{ type: 'text', text: 'Extraia todo o texto visível e descreva a imagem em português, de forma factual. Não invente.' }, { type: 'image_url', image_url: { url: `data:${mime};base64,${bytes.toString('base64')}` } }] }] }) });
+    const response = await call('https://api.openai.com/v1/chat/completions', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1200, messages: [{ role: 'user', content: [{ type: 'text', text: 'Transcreva o texto visível em português, uma frase por linha, sem introdução e sem descrever o layout. Não invente.' }, { type: 'image_url', image_url: { url: `data:${mime};base64,${bytes.toString('base64')}` } }] }] }) });
     if (!response.ok) throw new DomainError(502, 'media_provider_failed', 'Não foi possível ler a imagem.');
     const data = await response.json() as { choices?: { message?: { content?: string } }[] };
     const text = String(data.choices?.[0]?.message?.content ?? '').trim();

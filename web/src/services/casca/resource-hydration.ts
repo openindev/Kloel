@@ -7,6 +7,7 @@ import { hydrateAirtable } from './airtable'
 import { hydrateWebchat } from './webchat'
 import { engineSession } from '../engine/session'
 import { hydrateBeforeFields } from './before-context';
+import { hydrateCommercial } from './commercial'
 import { createBaserowService } from '../engine/baserow'
 import { createAirtableService } from '../engine/airtable'
 import { createIntegrationService } from '../engine/integrations'
@@ -25,6 +26,6 @@ export async function hydrateAgentResources(context: EngineContext, agents: Agen
     http: { actions: early(() => createIntegrationService(context).actions()), after: new Map(agents.map(agent => [agent.id, early(() => after.config(agent.id))])) },
   }
   const before = await hydrateBeforeFields(context, agents, engineSession.can('integrations:manage'))
-  const hydrated = await hydrateHttpResources(context, await hydrateSheets(context, await hydrateAirtable(context, await hydrateBaserow(context, before, prefetched.baserow), prefetched.airtable), userId), prefetched.http)
+  const hydrated = await hydrateCommercial(context, await hydrateHttpResources(context, await hydrateSheets(context, await hydrateAirtable(context, await hydrateBaserow(context, before, prefetched.baserow), prefetched.airtable), userId), prefetched.http))
   return engineSession.can('channels:read') ? hydrateWebchat(context, hydrated) : hydrated
 }

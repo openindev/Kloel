@@ -29,6 +29,7 @@ import { newItemParam, parseNewItem, useRoutedView, type ResourceProps } from '.
 import { AGENT_INTEGRATIONS, schemaBySlug, type IntegrationField, type IntegrationSchema } from './integrationSchemas'
 import { PersonalizarSheet } from './PersonalizarSheet'
 import { realWebhooks } from '@/services/casca/webhooks'
+import { deleteCommercial, probeWebhook } from '@/services/casca/commercial'
 
 type View = { mode: 'list'; seq: number } | { mode: 'picker'; fromList: boolean; seq: number } | { mode: 'edit'; id?: string; slug: string; fromList: boolean; seq: number }
 
@@ -54,6 +55,7 @@ export function IntegrationsResource({ agent, open, onOpenChange }: ResourceProp
     const found = agent.integrations.find((i) => i.id === item)
     return found ? { mode: 'edit', id: found.id, slug: found.integration, fromList: true, seq } : root
   }
+  const [pendingDelete, setPendingDelete] = useState<IntegrationAction | null>(null)
   const { view, go } = useRoutedView<View>({
     init: (item) => fromParam(item, 0),
     itemOf: (v) => (v.mode === 'list' ? null : v.mode === 'picker' ? (v.fromList ? newItemParam() : null) : (v.id ?? newItemParam(v.slug))),
@@ -91,13 +93,29 @@ export function IntegrationsResource({ agent, open, onOpenChange }: ResourceProp
             key={i.id}
             leading={<IntegrationLogo surface="agent" slug={i.integration} name={catalogOf(i.integration)?.name ?? i.integration} className="size-8" />}
             title={i.name}
-            subtitle={`${catalogOf(i.integration)?.name ?? i.integration} · ${EXECUTION_LABEL[i.timing]}`}
-            pills={i.connected ? undefined : <Pill tone="muted">Não conectada</Pill>}
+            subtitle={`${catalogOf(i.integration)?.name ?? i.integration} · ${EXECUTION_LABEL[i.timing]}${i.lastTest?.detail ? ` · ${i.lastTest.detail}` : ''}`}
+            pills={i.connected ? <Pill tone="success">Conectada</Pill> : <Pill tone="muted">Não conectada</Pill>}
             onClick={() => next({ mode: 'edit', id: i.id, slug: i.integration, fromList: true })}
+            trailing={<button type="button" className="shrink-0 px-3 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => setPendingDelete(i)}>Excluir integração</button>}
           />
         ))}
         <AddRow onClick={() => next({ mode: 'picker', fromList: true })}>Adicionar integração</AddRow>
       </ListCard>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title="Excluir integração?"
+        description={pendingDelete?.integration === 'personalizar' ? 'A plataforma, as credenciais e o segredo do webhook de entrada serão apagados.' : 'A integração e o endereço secreto do webhook serão apagados.'}
+        confirmLabel="Excluir integração"
+        onConfirm={async () => {
+          const item = pendingDelete
+          if (!item) return
+          if (item.integration === 'personalizar') await deleteCommercial(agent.id)
+          await saveAgent(agent, (current) => ({ integrations: current.integrations.filter((entry) => entry.id !== item.id) }))
+          toast.success('Integração excluída.')
+          setPendingDelete(null)
+        }}
+      />
     </SideSheet>
   )
 }
@@ -216,6 +234,24 @@ function IntegrationEditor({
   }
 
   const fieldsOf = (t: 'general' | 'settings') => schema.fields.filter((f) => (f.tab ?? 'general') === t)
+  const webhookReady = !!config.webhookUrl?.trim() || target?.engineBinding?.kind === 'http'
+
+  const testConnection = async () => {
+    const url = config.webhookUrl?.trim()
+    try {
+      if (url) {
+        const result = await probeWebhook(url)
+        const detail = result.body?.trim() ? result.body.trim().slice(0, 180) : undefined
+        if (result.ok) toast.success(`Conexão HTTP ${result.status}`, { description: detail })
+        else toast.error(`A conexão falhou (HTTP ${result.status})`, { description: detail })
+        return
+      }
+      if (target?.engineBinding?.kind === 'http') {
+        const result = await realWebhooks.test({ agentId: agent.id, actionId: target.engineBinding.id, arguments: {} })
+        toast.success('Conexão confirmada', { description: `HTTP ${result.code} em ${result.ms} ms. ${result.response}` })
+      }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Não foi possível testar') }
+  }
 
   const save = async () => {
     try {
@@ -301,7 +337,7 @@ function IntegrationEditor({
           )}
         </span>
       }
-      footer={<SheetFooter onSave={save} onCancel={onDone} left={target && <DeleteFooterButton label="Remover" onClick={() => setConfirmDelete(true)} />} />}
+      footer={<SheetFooter onSave={save} onCancel={onDone} left={target && <DeleteFooterButton label="Excluir integração" onClick={() => setConfirmDelete(true)} />} />}
     >
       <Tabs value={tab} onValueChange={setTab} className="-mt-2" data-testid="integration-editor">
         <UnderlineTabsList className="sticky top-0 z-10 w-full max-w-full justify-start border-b bg-background max-sm:gap-4">
@@ -314,8 +350,8 @@ function IntegrationEditor({
         </UnderlineTabsList>
 
         <TabsContent value="general" className="mt-6 flex flex-col gap-4 data-[state=inactive]:hidden">
-          {schema.auth === 'webhook' && target?.engineBinding?.kind === 'http' && (
-            <Button type="button" variant="secondary" className="self-start" onClick={() => void realWebhooks.test({ agentId: agent.id, actionId: target.engineBinding && target.engineBinding.kind === 'http' ? target.engineBinding.id : '', arguments: {} }).then(result => toast.success('Conexão confirmada', { description: `HTTP ${result.code} em ${result.ms} ms` })).catch(error => toast.error(error instanceof Error ? error.message : 'Não foi possível testar'))}>
+          {schema.auth === 'webhook' && (
+            <Button type="button" variant="secondary" className="self-start" disabled={!webhookReady} onClick={() => void testConnection()}>
               Testar conexão
             </Button>
           )}
@@ -373,9 +409,9 @@ function IntegrationEditor({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Remover integração?"
-        description={`"${name}" deixará de ser usada pelo assistente ${agent.name}.`}
-        confirmLabel="Remover"
+        title="Excluir integração?"
+        description={`"${name}" e o endereço secreto do webhook serão apagados. O assistente ${agent.name} deixa de usar esta integração.`}
+        confirmLabel="Excluir integração"
         onConfirm={async () => {
           await saveAgent(agent, (a) => ({ integrations: a.integrations.filter((x) => x.id !== target?.id) }))
           toast.success('Integração removida.')

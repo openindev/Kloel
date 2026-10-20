@@ -44,9 +44,9 @@ export function sameOriginLinks(html: string, base: string): string[] {
   return [...found];
 }
 
-async function extract(bytes: Buffer, mimeType: string, filename = 'arquivo') {
+async function extract(bytes: Buffer, mimeType: string, filename = 'arquivo', media: { fetch?: typeof fetch; apiKey?: string | null } = {}) {
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return { text: docxText(bytes), method: 'docx_xml', ocr: false as const };
-  if (mimeType.startsWith('image/') || mimeType.startsWith('audio/') || mimeType.startsWith('video/')) return describeMedia(bytes, mimeType, filename);
+  if (mimeType.startsWith('image/') || mimeType.startsWith('audio/') || mimeType.startsWith('video/')) return describeMedia(bytes, mimeType, filename, media);
   if (mimeType === 'application/pdf') return { ...(await extractPdf(bytes)), method: 'pdfjs_text' };
   let text: string;
   try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new DomainError(422, 'invalid_text_encoding', 'Text sources must use UTF-8'); }
@@ -71,7 +71,7 @@ function wrapper(fn: (request: FastifyRequest, reply: FastifyReply) => unknown) 
   };
 }
 
-export async function registerIngestion(app: FastifyInstance, store: Store, urlOptions: UrlOptions = {}): Promise<void> {
+export async function registerIngestion(app: FastifyInstance, store: Store, urlOptions: UrlOptions = {}, media: { fetch?: typeof fetch; apiKey?: string | null } = {}): Promise<void> {
   app.post('/api/v1/knowledge/upload', { bodyLimit: Math.ceil(limit / 3) * 4 + 16384 }, wrapper(async (request, reply) => {
     const actor = requireRequestPermission(store, request, 'knowledge:write');
     const input = uploadSchema.parse(request.body);
@@ -81,7 +81,7 @@ export async function registerIngestion(app: FastifyInstance, store: Store, urlO
     const bytes = Buffer.from(input.base64, 'base64');
     if (bytes.length > limit) throw new DomainError(413, 'source_too_large', 'Upload size exceeds 10 MiB');
     if (bytes.toString('base64') !== input.base64) throw new DomainError(400, 'invalid_base64', 'Provide a canonical base64 document');
-    const result = await extract(bytes, input.mimeType, input.filename);
+    const result = await extract(bytes, input.mimeType, input.filename, media);
     requireRequestPermission(store, request, 'knowledge:write');
     const rawHash = hash(bytes);
     const item = store.transaction(() => {

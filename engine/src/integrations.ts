@@ -5,7 +5,7 @@ import { DomainError } from './domains.js';
 import { OAuthError } from './oauth/client.js';
 import { privileged } from './oauth/access.js';
 import { actionCollection,operationCollection,supportedTemplates,configureAction,integrationActor,publicAction,publicOperation,executeRegisteredIntegration } from './integrations/service.js';
-import type { IntegrationTransport } from './integrations/transport.js';
+import { deliver, type IntegrationTransport } from './integrations/transport.js';
 import { integrationRuntimeMatrix } from './integrations/capabilities.js';
 import { registerBaserowRoutes } from './integrations/baserow.js';
 import { registerAirtableRoutes } from './integrations/airtable.js';
@@ -46,6 +46,15 @@ export async function registerIntegrations(app:FastifyInstance,store:Store,trans
     const actor=integrationActor(store,req.actor,true),changes=z.object({enabled:z.boolean()}).strict().parse(req.body);
     const action=store.update(actor.tenantId,actionCollection,id(req),changes);
     if(!action)throw new DomainError(404,'action_not_found','Ação não encontrada.');return publicAction(action);
+  }));
+  app.post('/api/v1/integrations/webhook-probe',safe(async req=>{
+    integrationActor(store,req.actor,true);
+    const input=z.object({url:z.string().max(2000)}).strict().parse(req.body);
+    const body=Buffer.from(JSON.stringify({event:'kloel.connection_test',source:'n8n'}));
+    const sent=await deliver(input.url,{method:'POST',headers:{'content-type':'application/json'},body},10000,transport);
+    const text=sent.response.body.toString('utf8').replace(/\s+/g,' ').slice(0,500);
+    const ok=sent.response.status>=200&&sent.response.status<300;
+    return {ok,status:sent.response.status,body:text};
   }));
   app.post('/api/v1/integrations/actions/:id/execute',safe(req=>{
     const body=z.object({arguments:z.unknown()}).strict().parse(req.body);

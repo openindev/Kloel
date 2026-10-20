@@ -52,12 +52,14 @@ export const knowledgeFileTypes = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
   mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', flac: 'audio/flac',
-  mp4: 'video/mp4', webm: 'video/webm', mpeg: 'video/mpeg',
+  mp4: 'video/mp4', webm: 'video/webm', mpeg: 'video/mpeg', mov: 'video/quicktime',
 } as const
 export async function readKnowledgeFile(file: File) {
   const extension = file.name.split('.').pop()?.toLowerCase() as keyof typeof knowledgeFileTypes
-  const mimeType = knowledgeFileTypes[extension]
-  if (!mimeType || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) invalid('Use documento, imagem, áudio ou vídeo de até 10 MiB (PDF, DOCX, TXT, Markdown, CSV, JSON, PNG, JPG, WEBP, GIF, MP3, WAV, M4A, OGG, MP4 ou WEBM).')
+  let mimeType: string | undefined = knowledgeFileTypes[extension]
+  if (extension === 'webm' && file.type === 'audio/webm') mimeType = 'audio/webm'
+  if (extension === 'mov' || file.type === 'video/quicktime') mimeType = 'video/quicktime'
+  if (!mimeType || !file.size || file.size > 10 * 1024 * 1024 || file.name.length > 200) invalid('Use documento, imagem, áudio ou vídeo de até 10 MiB (PDF, DOCX, TXT, Markdown, CSV, JSON, PNG, JPG, WEBP, GIF, MP3, WAV, M4A, OGG, WEBM, MP4 ou MOV).')
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))

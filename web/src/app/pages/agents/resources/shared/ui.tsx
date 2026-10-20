@@ -429,9 +429,9 @@ export function ListCard({ children, className }: { children: ReactNode; classNa
   return <ul className={cn('divide-y overflow-hidden rounded-xl border bg-background', className)}>{children}</ul>
 }
 
-export function ListRow({ title, subtitle, pills, leading, onClick, testId }: { title: ReactNode; subtitle?: ReactNode; pills?: ReactNode; leading?: ReactNode; onClick: () => void; testId?: string }) {
+export function ListRow({ title, subtitle, pills, leading, onClick, testId, trailing }: { title: ReactNode; subtitle?: ReactNode; pills?: ReactNode; leading?: ReactNode; onClick: () => void; testId?: string; trailing?: ReactNode }) {
   return (
-    <li>
+    <li className={trailing ? 'flex items-stretch' : undefined}>
       {/* < sm: grade (pílulas abaixo do título, que fica legível em 390px); ≥ sm: linha única como na ref. 539 */}
       <button
         type="button"
@@ -440,6 +440,7 @@ export function ListRow({ title, subtitle, pills, leading, onClick, testId }: { 
         className={cn(
           'grid w-full items-center gap-x-3 px-5 py-4 text-left transition-colors hover:bg-muted/40 sm:flex',
           leading ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]',
+          trailing && 'min-w-0 flex-1',
         )}
       >
         {leading && <span className="col-start-1 row-span-2 row-start-1 flex">{leading}</span>}
@@ -452,6 +453,7 @@ export function ListRow({ title, subtitle, pills, leading, onClick, testId }: { 
         )}
         <ChevronRight className={cn('row-span-2 row-start-1 size-4 shrink-0 text-foreground', leading ? 'col-start-3' : 'col-start-2')} />
       </button>
+      {trailing}
     </li>
   )
 }

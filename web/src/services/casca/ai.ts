@@ -2,7 +2,7 @@ import type { AIEngine, GeneratedAssistant } from '../types'
 import type { ProgressFn } from '../runtime'
 import { captureEngineContext, engineSession } from '../engine/session'
 import { emailAgentClient } from '../engine/email-agents'
-import { knowledgeCommands } from './knowledge'
+import { knowledgeCommands, mediaUploadSlot } from './knowledge'
 import { createCascaChatSession, type CascaChatSession } from './test-chat'
 
 const chats = new Map<string, CascaChatSession>()
@@ -48,7 +48,7 @@ export const realAI: AIEngine = {
     const agentId = requiredAgent(context)
     if (!(file instanceof File)) throw Error('Selecione o arquivo original para enviar.')
     progress(onProgress, false, 'Enviando mídia…')
-    const row = await knowledgeCommands(agentId, 'document').upload(context?.title?.trim() || file.name, file)
+    const row = await knowledgeCommands(agentId, mediaUploadSlot(file)).upload(context?.title?.trim() || file.name, file)
     progress(onProgress, false, 'Gerando informações…')
     let created = 0
     try { created = await knowledgeCommands(agentId, `faq-${row.id}`).generate(row.id) } catch { created = 0 }
