@@ -1,0 +1,19 @@
+import { z } from 'zod';
+import type { Store } from '../store.js';
+import { C,CalendlyError } from './schema.js';
+import { type Audience } from './access.js';
+import { resolveAction } from './actions.js';
+import { slots } from './booking.js';
+export type CalendlyTurn={audience:Audience;agentId:string;conversationId:string;operationId:string;operationKey:string;assertBase:()=>void;guards:Set<()=>void>;assertResults:()=>void};
+export function createCalendlyTurn(input:Omit<CalendlyTurn,'guards'|'assertResults'>):CalendlyTurn{const guards=new Set<()=>void>();return{...input,guards,assertResults:()=>{for(const guard of guards)guard();}};}
+export function managedCalendlyMode(store:Store,turn:CalendlyTurn|undefined,privateChat?:{tenantId:string;agentId:string}){const s=turn?{tenantId:turn.audience.tenantId,agentId:turn.agentId,kind:turn.audience.kind,channelId:turn.audience.kind==='webchat'?turn.audience.channelId:null}:privateChat?{...privateChat,kind:'private',channelId:null}:null;return!!s&&store.list(s.tenantId,C.actions).some(a=>a.agentId===s.agentId&&a.enabled===true&&a.audience===s.kind&&(s.kind==='private'||a.channelId===s.channelId));}
+export function calendlyAgentTools(store:Store,turn:CalendlyTurn|undefined){if(!turn)return[];const actions=store.list(turn.audience.tenantId,C.actions).filter(a=>a.agentId===turn.agentId).flatMap(a=>{try{return[resolveAction(store,turn.audience,a.id,turn.conversationId)];}catch{return[];}});if(!actions.length)return[];
+  const tool=(name:string,description:string,properties:Record<string,unknown>)=>({type:'function' as const,name,description,strict:true,parameters:{type:'object',properties,required:Object.keys(properties),additionalProperties:false}});
+  return[tool('calendly_event_types','Tipos Calendly autorizados. Consulta não reserva. A pessoa confirma no cartão, com notificações normais do Calendly.',{}),...actions.map(t=>tool(`calendly_slots_${t.action.id.replaceAll('-','')}`,`Consultar horários Calendly: ${String(t.action.title).slice(0,160)}, ${String(t.action.timezone)}. Não cria reserva.`,{from:{type:'string',description:'RFC3339 futuro com offset'},to:{type:'string',description:'RFC3339 no máximo7dias após from'}}))];
+}
+export async function executeCalendlyAgentTool(store:Store,turn:CalendlyTurn,call:{name:string;arguments:string}){
+  turn.assertBase();if(call.name==='calendly_event_types'){z.object({}).strict().parse(JSON.parse(call.arguments));const eventTypes=store.list(turn.audience.tenantId,C.actions).filter(a=>a.agentId===turn.agentId).flatMap(a=>{try{const t=resolveAction(store,turn.audience,a.id,turn.conversationId);turn.guards.add(t.check);return[{actionId:a.id,title:t.action.title,timezone:t.action.timezone,durationMinutes:t.action.durationMinutes,creationRequiresCard:true}];}catch{return[];}});turn.assertBase();return{ok:true,eventTypes};}
+  const m=/^calendly_slots_([a-f0-9]{32})$/.exec(call.name),a=m&&store.list(turn.audience.tenantId,C.actions).find(r=>r.agentId===turn.agentId&&r.id.replaceAll('-','')===m[1]);if(!a)return{ok:false,error:'tool_not_enabled'};
+  try{const t=resolveAction(store,turn.audience,a.id,turn.conversationId);turn.guards.add(t.check);const range=z.object({from:z.string().datetime({offset:true}),to:z.string().datetime({offset:true})}).strict().parse(JSON.parse(call.arguments));const c=await slots(store,turn.audience,turn.conversationId,{actionId:a.id,expectedRevision:a.revision,...range},{id:turn.operationId,key:turn.operationKey});turn.assertBase();return{ok:true,kind:'calendly.slots',choiceId:c.choiceId,title:c.title,timezone:c.timezone,slots:c.slots.map(s=>({startAt:s.startAt,endAt:s.endAt})),complete:c.complete,nextFrom:c.nextFrom,confirmation:'Escolha e confirme no cartão. Calendly pode enviar notificações normais. Consulta não é reserva.'};}
+  catch(e){turn.assertBase();return{ok:false,error:e instanceof CalendlyError?e.code:'calendly_action_unavailable',automaticRetry:false};}
+}

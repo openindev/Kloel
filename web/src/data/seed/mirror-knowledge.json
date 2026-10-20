@@ -1,0 +1,545 @@
+{
+ "source": "app.fonio.ai /agents/<Roberta>/knowledge, aba Informações (conta ao vivo, somente leitura), 2026-10-19 — docs/evidence/live-compare/C-assistentes/conhecimento-informacoes-fonio.json. Ordem = ordem exibida. origin: site = globe + \"kloel.com\"; auto = sparkles + \"Gerado automaticamente\". usage = selo \"N×\".",
+ "entries": [
+  {
+   "q": "Quais modelos de IA a Kloel oferece?",
+   "a": "A Kloel disponibiliza e reúne em sua plataforma vários modelos de IA, incluindo ChatGPT, Claude, Gemini, Perplexity, GPT 6, Claude Sonnet 5.5, Gemini 3.8 Flash, Grok 4.7, Perplexity Sonar, GPT-5, Claude 4.6 Sonnet, Deepseek 3.1 e GPT-5 Mini, com uso para chat, geração de imagens, áudios e apresentações. A disponibilidade de modelos pode variar conforme o recurso e o plano.",
+   "origin": "site",
+   "usage": 1
+  },
+  {
+   "q": "Quanto custa o plano Kloel Pro?",
+   "a": "O Kloel Pro custa R$ 199,80 por mês, com cobrança anual de R$ 2.397,60 para 2 licenças, incluindo a licença do responsável.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem suporte ao cliente?",
+   "a": "Sim. A Kloel informa suporte ao vivo via chat, disponível 7 dias por semana.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Para quais áreas de trabalho a Kloel pode ajudar?",
+   "a": "A Kloel oferece fluxos e recursos para marketing, RH, vendas, mídia social e jurídico, além de apoiar pesquisas, criação de conteúdo, análise de currículos, resumos de reuniões, calendário de redes sociais, revisão de documentos legais e automação de tarefas da equipe.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem biblioteca de prompts e assistentes?",
+   "a": "Sim. A plataforma inclui biblioteca de prompts e assistentes, e em alguns materiais também é descrita como biblioteca de prompts e agentes.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Onde a Kloel foi criada e de onde a empresa opera?",
+   "a": "A Kloel foi criada em Caldas Novas, Goiás, Brasil.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Posso criar assistentes personalizados na Kloel?",
+   "a": "Sim. A plataforma permite criar assistentes personalizados; nos planos mostrados, há limite de 2 assistentes personalizados em um plano e criação ilimitada em outro.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel protege meus dados, chats e documentos?",
+   "a": "A Kloel informa que chats, documentos e demais conteúdos não são usados para treinar as IAs, que os dados são privados e criptografados, e que a plataforma opera com segurança empresarial e compliance SOC 2 e LGPD.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais cursos a Kloel Academy oferece?",
+   "a": "A Kloel Academy oferece cursos como Dominando a IA Generativa, IA na Prática, IA para Imagens, IA para Programação, Autodesenvolvimento com IA, IA para Gestão de Negócios e IA para Marketing. As aulas serão disponibilizadas em breve.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os detalhes do plano Kloel Pro?",
+   "a": "O Kloel Pro é um plano anual com acesso aos cursos da Kloel Academy, newsletter semanal de IA, dashboard de controle, criação ilimitada de assistentes personalizados, chats ilimitados em modelos de IA rápidos e avançados e geração de imagens, áudios e apresentações.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem soluções para empresas e equipes?",
+   "a": "Sim. A Kloel foi construída para pessoas e equipes e oferece uma solução específica para empresas, com dashboard, criação de equipes, compartilhamento de documentos, prompts e assistentes, e gestão de licenças.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os benefícios do dashboard da Kloel para empresas?",
+   "a": "O dashboard da Kloel oferece um painel personalizado com insights sobre o uso e o engajamento dos colaboradores, mostrando as principais IAs e ferramentas usadas para aumentar a produtividade e economizar tempo.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel ajuda com redes sociais?",
+   "a": "A Kloel ajuda a criar calendário de conteúdos, legendas para Instagram, LinkedIn e TikTok, e roteiros de vídeos com foco em viralização.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Qual é o limite de anexos e arquivos na Kloel?",
+   "a": "Nos planos mostrados, a Kloel oferece até 1 GB de anexos com arquivos de até 10 MB em um plano, e até 5 GB de anexos com arquivos de até 20 MB em outro plano.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os planos da Kloel e o que cada um inclui?",
+   "a": "A Kloel oferece planos com acesso na web e nos aplicativos Android e iOS, newsletter semanal de IA, cursos com certificação, biblioteca de prompts e assistentes, criação de assistentes personalizados, anexos, mensagens com modelos rápidos e avançados, geração de imagem, áudio e slides, uso de agentes e recarga avulsa de créditos. Entre as opções mostradas há um plano com 40.000 créditos mensais, criação de 2 assistentes personalizados, até 1 GB de anexos e arquivos de até 10 MB; e planos com 80.000 créditos mensais, criação ilimitada de assistentes personalizados, até 5 GB de anexos e arquivos de até 20 MB. Alguns recursos avançados citados incluem GPT-5, Claude 4.6 Sonnet, Deepseek 3.1, GPT-5 Mini, Nano Banana, ElevenLabs, Gamma e mais de 25 integrações ou recursos adicionais.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel ajuda na área jurídica?",
+   "a": "A Kloel permite resumir documentos legais complexos, comparar documentos para identificar diferenças e semelhanças e usar um chatbot de IA para esclarecer riscos e pontos-chave legais.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Em quais dispositivos a Kloel está disponível?",
+   "a": "A Kloel está disponível na web, em computador e tablet, e também oferece acesso por aplicativo para celular. No site, os apps para iOS e Android podem aparecer como indisponíveis ou em breve, dependendo da página consultada.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel permite usar agentes para executar tarefas?",
+   "a": "Sim. A plataforma oferece Modo Agente para executar tarefas, com até 2 agentes ativos em um dos planos e agentes personalizados sem limite em outro.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel ajuda em vendas?",
+   "a": "Em vendas, a Kloel pode analisar materiais de vendas para gerar insights, resumir reuniões e chamadas, e criar apresentações de slides personalizadas para cada cliente.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel ajuda no marketing?",
+   "a": "No marketing, a Kloel ajuda a criar conteúdo para vários canais, produzir anúncios para Google, Meta e LinkedIn, e gerar copy otimizada para landing pages, blogs e SEO.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "O que está incluído nos planos da Kloel?",
+   "a": "Os planos podem incluir mais de 50 modelos de IA, cursos com certificado, atualizações semanais por e-mail, suporte ao vivo via chat 7 dias por semana, biblioteca de prompts, assistentes personalizados, geração de imagens, áudios e slides, além de recursos como agentes, anexos e recarga avulsa de créditos, conforme o plano contratado.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funciona a criação de equipes na Kloel?",
+   "a": "A Kloel permite criar quantas equipes forem necessárias e compartilhar documentos, prompts e assistentes com cada time.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como posso falar com a Kloel?",
+   "a": "Você pode falar com a Kloel pelo e-mail suporte@kloel.com e também pelo WhatsApp no número +55 11 5286-3804. Para conhecer os planos, a empresa também direciona para a página de preços.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funciona a gestão de licenças na Kloel?",
+   "a": "A plataforma permite controlar as licenças contratadas diretamente por ela, com opção de adicionar e remover usuários em um clique.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel pode ajudar a integrar seus recursos aos sistemas da minha empresa?",
+   "a": "Sim. A Kloel informa que pode avaliar opções de integração quando a empresa explicar quais sistemas e fluxos utiliza.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel ajuda no RH?",
+   "a": "No RH, a Kloel ajuda a criar descrições de vagas, analisar currículos, gerar roteiros de treinamento, artigos de suporte, guias da empresa, onboarding e SOPs personalizados.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel oferece cursos e certificação?",
+   "a": "Sim. A Kloel Academy oferece cursos com certificado em temas como IA para Imagens, IA para Marketing, IA na Prática, Autodesenvolvimento com IA, IA para Programação, Dominando a IA Generativa, IA para Gestão de Negócios e IA para Marketing.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Posso criar e compartilhar assistentes personalizados com meu time na Kloel?",
+   "a": "Sim. A Kloel permite criar prompts e assistentes personalizados e compartilhá-los com a organização ou com a equipe.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "O que a Kloel oferece para empresas com mais de 5 licenças?",
+   "a": "Para empresas com mais de 5 licenças, a Kloel oferece onboarding com consultor e atendimento personalizado.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais recursos a Kloel oferece para equipes e empresas?",
+   "a": "A Kloel oferece acesso a IAs como ChatGPT, Claude, Gemini e Perplexity, além de chat, geração de imagens, slides e áudios, dashboard interativo, compartilhamento de assistentes, criação de equipes, gestão de licenças e ferramentas usadas. Também inclui cursos da Kloel Academy com certificado para a equipe.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "O que é a Kloel e qual é a proposta da plataforma?",
+   "a": "A Kloel é uma plataforma de IA/SaaS da KLOEL TECNOLOGIA LTDA que reúne modelos de IA, chat, criação de documentos, ferramentas de conteúdo e aprendizado em um só lugar. A proposta é simplificar o dia a dia de pessoas, equipes e empresas, apoiando pesquisas, textos, imagens, áudios, apresentações e automação de tarefas.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais recursos a plataforma da Kloel oferece?",
+   "a": "A plataforma oferece chat com IA, criação e organização de documentos, biblioteca com mais de 250 prompts por área, criação de assistentes personalizados, modo agente para executar tarefas, projetos com pastas, geração de imagens, áudios e apresentações, dashboard de uso, compartilhamento com equipes e integração com ferramentas externas conforme o plano.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quantos usuários a Kloel diz ter?",
+   "a": "A Kloel afirma que já reúne mais de 500 mil usuários.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funciona a contratação da Kloel?",
+   "a": "Para contratar, o cliente deve preencher os dados, seguir para o pagamento e, após a confirmação, o acesso é liberado.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel envia novidades e ofertas por marketing automaticamente?",
+   "a": "Não. Novidades e ofertas só são enviadas se o usuário marcar a opção de marketing, que é separada e opcional.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel oferece garantia ou reembolso?",
+   "a": "Sim. A Kloel informa garantia de 14 dias; se o cliente não gostar, o dinheiro é devolvido.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como entro em contato com a Kloel sobre privacidade e dados?",
+   "a": "A responsável pelo tratamento é a KLOEL TECNOLOGIA LTDA - EPP, CNPJ 66.303.607/0001-59, localizada na Alameda Carajás, s/n, Quadra 5, Lote 11, Residencial Aldeia das Thermas, Caldas Novas - GO, CEP 75694-720. Para dúvidas ou solicitações de privacidade, o contato é suporte@kloel.com.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais dados a KLOEL TECNOLOGIA LTDA trata quando uso a plataforma Kloel?",
+   "a": "A KLOEL TECNOLOGIA LTDA pode tratar dados de cadastro e conta, como nome, e-mail e autenticação; dados informados no quiz de recomendação, como nome, e-mail, telefone, respostas e origem de acesso; mensagens, instruções, arquivos e conteúdos enviados para conversas, agentes e ferramentas; resultados gerados, histórico de uso, configurações de agentes e projetos; dados técnicos como IP, navegador, registros de acesso e erros; e dados de assinatura e consumo de créditos, quando esses recursos forem utilizados.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Para que a KLOEL usa os meus dados?",
+   "a": "Os dados são usados para manter a conta, executar as solicitações do usuário, mostrar histórico e arquivos, calcular o uso dos recursos, oferecer suporte, prevenir abuso e cumprir obrigações legais aplicáveis. No quiz, as respostas também são usadas para indicar um plano e recursos compatíveis com o perfil do usuário.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os meus direitos sobre os dados na Kloel, conforme a LGPD?",
+   "a": "O usuário pode solicitar confirmação e acesso aos dados, correção de informações incompletas ou desatualizadas, informações sobre compartilhamento e, quando cabível, exclusão, portabilidade ou revogação de consentimento.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel vende dados pessoais?",
+   "a": "Não. A Kloel informa que não vende dados pessoais.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel compartilha meus dados com terceiros?",
+   "a": "Sim, os dados podem ser processados por fornecedores que ajudam a operar a plataforma, como infraestrutura, armazenamento, processamento de IA, pagamentos e serviços conectados pelo usuário. Os dados do quiz de recomendação também podem ser encaminhados ao sistema de gestão LabrAI para organizar os contatos e apresentar a recomendação. O compartilhamento também pode ocorrer para cumprir obrigação legal ou proteger a segurança da plataforma.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Por quanto tempo a Kloel mantém os meus dados?",
+   "a": "Os dados são mantidos enquanto forem necessários para disponibilizar o serviço, preservar o histórico solicitado pelo usuário, atender obrigações legais e proteger a plataforma.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funciona o uso de inteligência artificial e integrações externas na Kloel?",
+   "a": "Para responder a uma solicitação, o conteúdo necessário pode ser enviado a provedores de modelos de IA e ferramentas selecionados para a operação. Quando o usuário conecta um serviço externo, os dados necessários podem ser trocados com esse serviço para executar a ação autorizada. A disponibilidade de modelos e integrações pode variar conforme o recurso e o plano.",
+   "origin": "site",
+   "usage": 1
+  },
+  {
+   "q": "A KLOEL é mais focada em empresas de qual perfil?",
+   "a": "A plataforma é voltada principalmente para vendedores, pequenas e médias empresas e empreendedores digitais, especialmente quem vende produtos ou cursos online.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A KLOEL tem alguma informação pública sobre sua origem ou histórico de fundação?",
+   "a": "A empresa aparece em registros públicos como ativa e com CNPJ 66.303.607/0001-59; a data informada nos registros é 16 de abril de 2026. Não há, no material fornecido, outro histórico fundador detalhado.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Quais informações públicas existem sobre a reputação e a conformidade da KLOEL TECNOLOGIA LTDA?",
+   "a": "A KLOEL declara conformidade com a LGPD, menciona segurança de nível empresarial com compliance SOC II e afirma que os dados dos usuários são criptografados e não são usados para treinar modelos de terceiros sem consentimento.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A KLOEL possui certificações, reconhecimentos ou prêmios públicos relevantes?",
+   "a": "Nas informações públicas fornecidas, não foram encontrados prêmios ou reconhecimentos de mercado amplamente divulgados; o destaque de conformidade citado é o SOC II e a aderência à LGPD.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Como a KLOEL se posiciona em relação aos concorrentes?",
+   "a": "A KLOEL se posiciona como uma plataforma integrada de marketing, vendas e IA, reunindo catálogo, checkout, CRM, automações, mensagens, criação de páginas, área de membros e agente de IA em um único ambiente.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "O que é a Kloel e o que ela oferece?",
+   "a": "A Kloel é uma plataforma brasileira de IA da Kloel TECNOLOGIA LTDA, voltada para otimizar rotinas de criação de conteúdo, trabalho e automação de tarefas por meio de assistentes de IA. Ela reúne mais de 50 modelos de inteligência artificial em um só lugar e oferece recursos como chat com IA, criação de documentos com templates, prompts, assistentes, projetos com pastas e suporte a fluxos de trabalho para diferentes áreas. Além disso, a Kloel também oferece cursos com certificado pela Kloel Academy e uma biblioteca com mais de 250 prompts.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais modelos de IA posso usar na Kloel?",
+   "a": "A Kloel dá acesso a mais de 50 modelos de IA, incluindo opções atuais como GPT 6, Claude Sonnet 5.5, Gemini 3.8 Flash, Grok 4.7 e Perplexity Sonar, além de outros modelos como DeepSeek, Llama, Qwen QwQ, Mistral, Sabiá, Leonardo, Ideogram, Nano Banana e Playground.",
+   "origin": "site",
+   "usage": 1
+  },
+  {
+   "q": "Que recursos a plataforma Kloel inclui?",
+   "a": "A plataforma inclui chat com modelos de IA, criação de documentos com templates, mais de 250 prompts organizados por áreas, criação de assistentes de IA e organização de criações em projetos com pastas. Também há cursos com certificado, suporte ao vivo e recursos voltados para produtividade e automação.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Para quais áreas a Kloel tem prompts e fluxos de trabalho?",
+   "a": "A Kloel oferece prompts e fluxos de trabalho para Marketing, RH, Vendas, Mídia Social e Jurídico, entre outras áreas, ajudando a criar conteúdos, analisar documentos, resumir reuniões, produzir anúncios e organizar processos.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem planos pagos? Como funciona a cobrança?",
+   "a": "Sim. A Kloel oferece recursos gratuitos e planos pagos. Cada plano inclui uma franquia mensal de mensagens rápidas, mensagens avançadas e créditos, conforme a página de preços. Compras feitas com cartão de crédito renovam automaticamente pelo mesmo preço e nas mesmas condições da compra inicial.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funcionam os créditos da Kloel?",
+   "a": "Os planos incluem créditos mensais, que são renovados conforme o ciclo do plano. A plataforma também permite comprar créditos avulsos, que valem por 12 meses a partir da compra e podem ser usados em recursos específicos da plataforma. O saldo e a data de renovação aparecem na plataforma.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Posso cancelar minha assinatura da Kloel e pedir reembolso?",
+   "a": "Sim. O usuário pode exercer o direito de arrependimento em compras online em até 14 dias após a compra, com reembolso dos valores pagos. Se forem créditos adicionais comprados separadamente e o pedido ocorrer em até 7 dias, a Kloel reembolsa apenas a parte não utilizada; se nenhum crédito tiver sido usado, o reembolso é integral. Após 14 dias, pode haver taxa de cancelamento de 50% do saldo restante do contrato, e o acesso é encerrado imediatamente.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como faço para cancelar os serviços da Kloel?",
+   "a": "Para cancelar, o usuário deve enviar uma solicitação para o e-mail support@kloel.com. As regras de cancelamento podem variar conforme o serviço adquirido e estão descritas no item 6 dos Termos de Serviço.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como faço para me cadastrar na Kloel?",
+   "a": "Para usar os serviços da Kloel, é necessário fornecer dados pessoais no cadastro. O usuário define login e senha, deve manter essas informações em sigilo e é responsável por fornecer dados verdadeiros, precisos e atualizados. A plataforma permite apenas 1 conta por endereço de e-mail.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são as regras da Kloel sobre uso de fotos e voz para criar avatares digitais?",
+   "a": "O uso de fotos e voz de usuários individuais para criar personagens digitais (avatares) depende de consentimento apropriado. Para usuários empresariais, a responsabilidade de obter esse consentimento específico e informado é exclusiva do próprio usuário empresarial. A Kloel também informa que não pagará aos usuários qualquer valor pelo uso dessas imagens e vozes e que esses dados não serão usados para outra finalidade.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quem é o dono da plataforma e do conteúdo da Kloel?",
+   "a": "A propriedade da plataforma e dos direitos relacionados pertence exclusivamente à Kloel TECNOLOGIA LTDA. O conteúdo da plataforma, incluindo nome, marca, domínio, programas, bancos de dados, textos, fotos, layouts e outros elementos, é de propriedade exclusiva da empresa ou licenciado a ela.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "O que acontece se eu violar as regras de propriedade intelectual da Kloel?",
+   "a": "Quem violar as proibições previstas na legislação de propriedade intelectual e nos termos pode ser responsabilizado civil e criminalmente e também pode sofrer penalidades na plataforma.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Os termos de uso da Kloel podem mudar?",
+   "a": "Sim. A Kloel pode adicionar ou modificar cláusulas unilateralmente. A versão atualizada passa a valer a partir da publicação, e o uso continuado da plataforma após essa publicação confirma a aceitação dos novos termos.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quais são as consequências de acessar a plataforma da Kloel?",
+   "a": "A Kloel informa que dificuldades técnicas, problemas de transmissão, aplicações de internet ou vírus podem causar cópias imprecisas ou incompletas das informações, e recomenda instalar software antivírus ou ferramentas de proteção adequadas.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Se eu não concordar com uma mudança nos termos, o que posso fazer?",
+   "a": "Se a alteração exigir consentimento, o usuário poderá aceitar ou rejeitar livremente o novo texto. Se não concordar com a mudança, pode negar consentimento para atos específicos ou encerrar totalmente a relação com a Kloel, mas continua obrigado a cumprir as obrigações assumidas em versões anteriores dos termos.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como posso falar com o suporte da Kloel?",
+   "a": "A Kloel informa suporte pelo site Kloel.com, pelo chat de atendimento ao cliente e pelo e-mail support@kloel.com. Para empresas Enterprise, há suporte dedicado via WhatsApp e e-mail quando necessário. A empresa também disponibiliza contato por WhatsApp no número +55 11 5286-3804.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quanto custa a Kloel?",
+   "a": "A Kloel informa planos a partir de R$ 99,90. Na página, ela destaca economia de 90% em comparação com compras separadas de modelos de IA e menciona acesso a mais de 50 modelos, cursos com certificado, suporte ao vivo 7 dias por semana e mais de 250 prompts.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel permite uso ilimitado?",
+   "a": "Para recursos descritos como ilimitados, não há limite fixo de uso. Porém, em situações raras, a Kloel pode aplicar a política de uso justo, investigar uso excessivo, reduzir temporariamente o acesso ou suspendê-lo se houver violação das regras, como uso de bots ou automações.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel trata meus dados pessoais e os dados de uso da plataforma?",
+   "a": "A Kloel possui uma Política de Privacidade específica para coleta, armazenamento e tratamento de dados pessoais e sua segurança. A Política de Privacidade faz parte integrante dos termos, e os dados de uso da plataforma serão arquivados conforme a legislação aplicável.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel pode bloquear minha conta ou restringir meu acesso?",
+   "a": "Sim. A Kloel pode, a seu exclusivo critério, bloquear, restringir, desativar ou impedir o acesso de qualquer usuário à plataforma quando detectar conduta inadequada, sem aviso prévio e sem direito a compensação.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quando os Termos de Serviço da Kloel foram publicados?",
+   "a": "Esta versão dos Termos de Serviço foi publicada em 18/02/2025.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem cursos de IA?",
+   "a": "Sim. A Kloel oferece cursos com certificado na Kloel Academy, incluindo temas como IA para Imagens, IA para Marketing, IA na Prática, Autodesenvolvimento com IA, IA para Programação, Dominando a IA Generativa e IA para Gestão de Negócios.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel se responsabiliza por links de sites de terceiros?",
+   "a": "Não. Se a plataforma contiver links para sites ou plataformas de terceiros, a Kloel informa que não assume responsabilidade pelas políticas desses terceiros e recomenda que o usuário as leia antes de fornecer dados pessoais.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como a Kloel lida com violações das regras de uso?",
+   "a": "Se houver violação das regras da plataforma, a Kloel pode suspender o acesso sem reembolsar o valor pago e também pode tomar medidas legais. A empresa diz fazer isso para manter a qualidade do serviço para todos os clientes.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Meus chats e dados ficam protegidos na Kloel?",
+   "a": "Sim. A Kloel informa que os chats nunca são usados para treinar as IAs, que os dados são privados e criptografados e que a plataforma possui compliance SOC II e LGPD.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel funciona em quais dispositivos?",
+   "a": "A Kloel pode ser usada no computador, tablet e celular pela web. A página também informa que o aplicativo para Windows e Android está em breve disponível, e o acesso via iOS também aparece como em breve.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel pode suspender ou cancelar minha conta?",
+   "a": "Sim. A Kloel pode encerrar o contrato, suspender os serviços, recusar ou cancelar a conta sem aviso prévio se suspeitar que as informações informadas são falsas, incompletas, desatualizadas ou imprecisas, ou em caso de inadimplência e outras hipóteses previstas em lei, nos Termos ou em políticas aplicáveis.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Quem é a empresa por trás da plataforma Kloel?",
+   "a": "A plataforma Kloel é de propriedade e manutenção da Kloel TECNOLOGIA LTDA, inscrita no CNPJ/ME 42.888.509/0001-62, com sede na Avenida Sagitário, nº 138, sala 2513B, condomínio A, Bairro Sítio Tamboré Alphaville, CEP 06473-073, Barueri - SP, Brasil. A plataforma é controlada e administrada na cidade de São Paulo, no estado de São Paulo, Brasil, e os termos são regidos pela legislação da República Federativa do Brasil.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "Como funcionam as contas de usuário na Kloel para pessoas físicas e empresas?",
+   "a": "A Kloel diferencia Usuário Individual, que se cadastra diretamente na plataforma para uso pessoal ou profissional, e Usuário Empresarial, que faz parte de uma empresa contratante da Kloel para uso profissional.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel pode alterar ou cancelar a plataforma?",
+   "a": "Sim. A Kloel reserva-se o direito de modificar unilateralmente a plataforma, incluindo sua configuração, apresentação, design, conteúdo, funcionalidades, ferramentas e até seu cancelamento.",
+   "origin": "site",
+   "usage": 0
+  },
+  {
+   "q": "O que é a Kloel e para que ela serve?",
+   "a": "A Kloel é uma plataforma SaaS de IA voltada para marketing e vendas, que reúne em um só ambiente ferramentas como catálogo de produtos, checkout, CRM, automações, criadores de páginas, áreas de membros e um agente de IA. Ela é indicada para usuários individuais, empresas e equipes, com recursos adicionais para operação corporativa, como dashboards, gestão de licenças, compartilhamento de assistentes e funções de segurança e conformidade. O agente de IA pode interagir com leads, qualificá-los e até vender em nome do vendedor, conforme as configurações e os produtos definidos pelo usuário.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os diferenciais da Kloel em relação a outras plataformas?",
+   "a": "Entre os principais diferenciais estão o modelo tudo em um, a automação de vendas com agente de IA, os pagamentos integrados com métodos brasileiros e a ênfase em segurança, privacidade e conformidade.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Quais formas de pagamento a Kloel oferece?",
+   "a": "A Kloel informa suporte a PIX, cartão de crédito e boleto, além de checkout integrado e funcionalidades de carteira digital.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel oferece garantia ou política de satisfação?",
+   "a": "Sim. A empresa informa uma garantia de satisfação de 14 dias para planos empresariais.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os planos e preços públicos da Kloel?",
+   "a": "O plano empresarial Kloel Pro é divulgado por R$ 199,80 por mês por licença no plano anual. A empresa também informa a existência de recursos gratuitos com limitações em relação aos planos pagos.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel divulga prêmios, clientes notáveis ou casos de sucesso públicos?",
+   "a": "Não foram encontrados prêmios públicos nem uma lista pública de clientes notáveis nas informações consultadas.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Como posso entrar em contato com o suporte da Kloel?",
+   "a": "O suporte pode ser contatado pelo e-mail suporte@kloel.com. Em algumas informações públicas também aparece a variação support@kloel.com. Não há telefone de atendimento ao cliente divulgado publicamente.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Quais são os dados cadastrais da Kloel?",
+   "a": "A razão social é KLOEL TECNOLOGIA LTDA – EPP. O CNPJ informado é 66.303.607/0001-59. A empresa foi fundada em 16 de abril de 2026.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel tem recursos de segurança e conformidade?",
+   "a": "Sim. A empresa declara conformidade com LGPD e SOC II, uso de criptografia e que os dados enviados não são usados para treinar modelos de IA.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "A Kloel cobra por créditos ou uso adicional?",
+   "a": "Sim. Alguns recursos, como tokens de IA, automações e geração de mídia, podem ter uso limitado por plano, e créditos adicionais podem ser comprados separadamente, com validade de 12 meses.",
+   "origin": "auto",
+   "usage": 0
+  },
+  {
+   "q": "Onde fica a sede da Kloel?",
+   "a": "A sede registrada fica em Alameda Carajás, s/n, Quadra 5, Lote 11, Residencial Aldeia das Thermas, Caldas Novas, Goiás, Brasil, CEP 75694-720.",
+   "origin": "auto",
+   "usage": 0
+  }
+ ]
+}

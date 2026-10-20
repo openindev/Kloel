@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <clipPath id="clip-Favicon_1">
+      <rect width="96" height="96"/>
+    </clipPath>
+  </defs>
+  <g id="Favicon_1" data-name="Favicon – 1" clip-path="url(#clip-Favicon_1)">
+    <rect width="96" height="96" fill="#fff"/>
+    <g id="Logo" transform="translate(11.338 2.999)">
+      <g id="Gruppe_5061" data-name="Gruppe 5061">
+        <path id="Pfad_5382" data-name="Pfad 5382" d="M90.769,28.35,59.99,108.978H33.13L63.878,28.35Z" transform="translate(-22.366 -19.139)" fill="#dc0046"/>
+        <path id="Pfad_5383" data-name="Pfad 5383" d="M57.665,0,26.828,80.631H0L30.8,0Z" fill="#00b4f0"/>
+        <path id="Pfad_5384" data-name="Pfad 5384" d="M83.971,28.34,57.386,99.764l0,.009h-.009l0-.009H44.41L70.918,28.34Z" transform="translate(-29.981 -19.132)" fill="#0f1e32"/>
+      </g>
+    </g>
+  </g>
+</svg>

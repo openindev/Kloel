@@ -1,0 +1,1 @@
+{"dispatchRule":{"id":"SDR_RvYdcFbZaAFy","name":"Kloel Twilio numbers (per-org routing)","trunkIds":["ST_pGPxDtC8BzuJ"],"rule":{"dispatchRuleIndividual":{"roomPrefix":"kloel-tw-"}},"hidePhoneNumber":false,"roomConfig":{"emptyTimeout":60,"departureTimeout":20,"maxParticipants":2,"agents":[{"agentName":"kloel-phone-pilot"}]}}}

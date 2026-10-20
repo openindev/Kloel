@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import type { TestContext } from 'node:test';
+import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
+import { Store } from '../../src/store.js';
+import { registerAuth } from '../../src/auth.js';
+import { registerOAuth } from '../../src/oauth.js';
+import { configureSpreadsheet } from '../../src/oauth/sheets.js';
+import { tokenContext } from '../../src/oauth/access.js';
+import { digest, seal } from '../../src/oauth/crypto.js';
+import { CONTEXT_HEADERS, resolveSessionContext } from '../../src/request-context.js';
+import { seedMember } from './membership.js';
+
+export const spreadsheetId = 'synthetic_spreadsheet_123456789';
+export const sheetInput = { sheetTitle: "Client's Data", range: 'A1:C20', rows: [['=SUM(A1:A3)', 42, true]] };
+export const sheetAck = { spreadsheetId, updates: { updatedRange: "'Client''s Data'!A21:C21", updatedRows: 1, updatedColumns: 3, updatedCells: 3 } };
+export type SheetRequest = { url: URL; method: string; body: unknown; headers: Headers };
+export async function sheetsFixture(t: TestContext) {
+  const names = ['OAUTH_ENCRYPTION_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'PUBLIC_BASE_URL'];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]])), previousFetch = globalThis.fetch;
+  process.env.OAUTH_ENCRYPTION_KEY = Buffer.alloc(32, 92).toString('base64'); process.env.GOOGLE_CLIENT_ID = 'synthetic-client'; process.env.GOOGLE_CLIENT_SECRET = 'synthetic-secret'; delete process.env.PUBLIC_BASE_URL;
+  const store = new Store(), actor = { tenantId: randomUUID(), userId: randomUUID(), role: 'owner' as const }, rawCookie = randomUUID(), sessionHash = digest(rawCookie);
+  seedMember(store, actor); store.db.prepare('INSERT INTO sessions(hash,user_id,tenant_id,expires) VALUES(?,?,?,?)').run(sessionHash, actor.userId, actor.tenantId, Date.now() + 86400000);
+  const connection = store.create(actor.tenantId, 'oauth-connections', { provider: 'google', userId: actor.userId, remoteId: 'synthetic-google-owner', visibility: 'personal', status: 'connected', capabilities: ['sheets_read', 'sheets_append'], scopes: 'https://www.googleapis.com/auth/spreadsheets' });
+  const setTokens = (expiresAt = Date.now() + 86400000) => store.update(actor.tenantId, 'oauth-connections', connection.id, { encryptedTokens: seal({ accessToken: 'synthetic-sheet-token', refreshToken: 'synthetic-refresh', expiresAt, scope: connection.scopes }, tokenContext(connection)) });
+  setTokens(); const binding = configureSpreadsheet(store, actor, connection.id, { spreadsheetId, name: 'Test sheet', allowAppend: true });
+  const app = Fastify(); await app.register(cookie); await registerAuth(app, store); await registerOAuth(app, store);
+  const cookies = { kloel_session: rawCookie }, prefix = `/api/v1/oauth/connections/${connection.id}/spreadsheets`, requests: SheetRequest[] = [];
+  const hooks: { provider?: (r: SheetRequest) => Response | undefined | Promise<Response | undefined> } = {};
+  globalThis.fetch = (async (input, init = {}) => {
+    const url = new URL(String(input)); assert.ok(['sheets.googleapis.com', 'oauth2.googleapis.com'].includes(url.hostname));
+    const request = { url, method: init.method ?? 'GET', headers: new Headers(init.headers), body: init.body ? (url.hostname === 'oauth2.googleapis.com' ? new URLSearchParams(String(init.body)) : JSON.parse(String(init.body))) : undefined };
+    requests.push(request); const handled = await hooks.provider?.(request); if (handled) return handled;
+    if (url.hostname === 'oauth2.googleapis.com') return Response.json({ access_token: 'synthetic-sheet-token', token_type: 'Bearer', expires_in: 3600, scope: connection.scopes });
+    assert.equal(request.headers.get('authorization'), 'Bearer synthetic-sheet-token');
+    if (request.method === 'POST') return Response.json(sheetAck);
+    if (url.pathname.includes('/values/')) return Response.json({ range: "'Client''s Data'!A1:C20", majorDimension: 'ROWS', values: [['untrusted text', 42, true]] });
+    return Response.json({ spreadsheetId, properties: { title: 'Test sheet', locale: 'pt_BR', timeZone: 'UTC' }, sheets: [{ properties: { sheetId: 0, title: sheetInput.sheetTitle, index: 0 } }] });
+  }) as typeof fetch;
+  t.after(async () => { await app.close(); store.close(); globalThis.fetch = previousFetch; for (const name of names) { if (previous[name] === undefined) delete process.env[name]; else process.env[name] = previous[name]; } });
+  const headers = () => { const context = resolveSessionContext(store, sessionHash)!.context; return Object.fromEntries(Object.entries(CONTEXT_HEADERS).map(([key, value]) => [value, context[key as keyof typeof context] ?? '-'])); };
+  const originalHeaders = headers();
+  const request = (method: 'GET' | 'POST' | 'PUT' | 'PATCH', url: string, payload?: unknown, key?: string, expected = originalHeaders) => app.inject({ method, url, cookies, headers: { ...expected, ...(key ? { 'idempotency-key': key } : {}) }, ...(payload === undefined ? {} : { payload }) });
+  const append = (key = randomUUID(), revision = 1, expected = originalHeaders, rows = sheetInput.rows) => request('POST', `${prefix}/${binding.id}/append`, { expectedTenantId: actor.tenantId, expectedRevision: revision, ...sheetInput, rows }, key, expected);
+  const operation = (key: string, expected = originalHeaders) => request('GET', `/api/v1/oauth/sheets/operations/${key}`, undefined, undefined, expected);
+  const toggle = (enabled: boolean, revision = 1, key = randomUUID(), expected = originalHeaders) => request('PATCH', `${prefix}/${binding.id}`, { expectedTenantId: actor.tenantId, expectedRevision: revision, enabled }, key, expected);
+  const aba = () => { store.db.prepare('UPDATE memberships SET role=? WHERE user_id=?').run('admin', actor.userId); store.db.prepare('UPDATE memberships SET role=? WHERE user_id=?').run('owner', actor.userId); };
+  return { app, store, actor, connection, binding, cookies, sessionHash, prefix, requests, hooks, setTokens, headers, originalHeaders, request, append, operation, toggle, aba };
+}

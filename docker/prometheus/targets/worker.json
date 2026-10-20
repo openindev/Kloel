@@ -1,1 +1,0 @@
-[{ "targets": ["worker:3003"], "labels": { "service": "worker", "module": "bullmq" } }]

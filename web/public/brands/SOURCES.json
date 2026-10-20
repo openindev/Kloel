@@ -1,0 +1,67 @@
+{
+ "generatedBy": "scripts/fetch-integration-logos.mjs",
+ "generatedAt": "2026-10-19T15:17:44.427Z",
+ "note": "Marcas de terceiros da página Bônus grátis, conforme exibidas pela Fonio.",
+ "brands": [
+  {
+   "key": "omr",
+   "file": "brands/omr.png",
+   "origin": "https://app.fonio.ai/free-credits-logos/omr.png",
+   "fetchedFrom": "https://app.fonio.ai/free-credits-logos/omr.png",
+   "fetchedAt": "2026-10-19T05:07:59.982Z",
+   "bytes": 5376,
+   "sha256": "52ee1b64628bf7e233c63875be5f1d7d4b05eee5b7232bf753ae99e38bca0cf5",
+   "width": 800,
+   "height": 565,
+   "sanitized": []
+  },
+  {
+   "key": "capterra",
+   "file": "brands/capterra.png",
+   "origin": "https://app.fonio.ai/free-credits-logos/capterra.png",
+   "fetchedFrom": "https://app.fonio.ai/free-credits-logos/capterra.png",
+   "fetchedAt": "2026-10-19T05:08:01.038Z",
+   "bytes": 21023,
+   "sha256": "f31bd94d44bb0b37c2b8c69d558bdd366ec4c9feac9b218c9b07fe303e587a10",
+   "width": 908,
+   "height": 925,
+   "sanitized": []
+  },
+  {
+   "key": "g2",
+   "file": "brands/g2.png",
+   "origin": "https://app.fonio.ai/free-credits-logos/g2.png",
+   "fetchedFrom": "https://app.fonio.ai/free-credits-logos/g2.png",
+   "fetchedAt": "2026-10-19T05:08:03.245Z",
+   "bytes": 258959,
+   "sha256": "0473f73bc1ffab02b64441fcb67f588496456bb9fd94adfa4f8d58bd47931031",
+   "width": 4908,
+   "height": 5000,
+   "sanitized": []
+  },
+  {
+   "key": "linkedin",
+   "file": "brands/linkedin.png",
+   "origin": "https://app.fonio.ai/free-credits-logos/linkedin.png",
+   "fetchedFrom": "https://app.fonio.ai/free-credits-logos/linkedin.png",
+   "fetchedAt": "2026-10-19T05:08:03.886Z",
+   "bytes": 23260,
+   "sha256": "3e5f5d58526851948a924a74474a89b15c48f68ff2cad9644b814a4a7cc3125a",
+   "width": 960,
+   "height": 960,
+   "sanitized": []
+  },
+  {
+   "key": "youtube",
+   "file": "brands/youtube.png",
+   "origin": "https://app.fonio.ai/free-credits-logos/youtube.png",
+   "fetchedFrom": "https://app.fonio.ai/free-credits-logos/youtube.png",
+   "fetchedAt": "2026-10-19T05:08:05.029Z",
+   "bytes": 9626,
+   "sha256": "8f6dbae4c07fd3530079089260d6782f3b5b7fdd625b09eb040829fbeb4c9e19",
+   "width": 640,
+   "height": 443,
+   "sanitized": []
+  }
+ ]
+}

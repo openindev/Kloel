@@ -1,1 +1,0 @@
-ALTER TYPE "ConversationStatus" ADD VALUE IF NOT EXISTS 'CONVERTED';

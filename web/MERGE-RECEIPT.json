@@ -1,0 +1,107 @@
+[
+ {
+  "path": "tests/casca-test-chat.test.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "tests/casca-before-context.test.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/app/pages/agents/TestCallDialog.tsx",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/app/pages/agents/resources/WebhooksSheet.tsx",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/domain/ext/engine-before-context.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/test-chat.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/before-save.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/resource-hydration.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/before-context.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/http-resource-save.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/agents.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/telephony.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/services/casca/before-translation.ts",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "src/app/pages/onboarding/OnboardingPage.tsx",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ },
+ {
+  "path": "tests/casca-onboarding-booking-ui.test.tsx",
+  "applied": true,
+  "cur": true,
+  "src": true,
+  "already": false
+ }
+]

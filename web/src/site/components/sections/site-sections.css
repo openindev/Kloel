@@ -1,0 +1,127 @@
+/* Animações das seções de marketing (módulo site-core). Escopo: classes prefixadas "ks-". */
+
+@keyframes ks-aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(14px, -18px, 0) rotate(4deg) scale(1.04); }
+}
+@keyframes ks-aurora-drift-rev {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(-16px, 14px, 0) rotate(-5deg) scale(1.05); }
+}
+.ks-aurora-a { animation: ks-aurora-drift 14s ease-in-out infinite; }
+.ks-aurora-b { animation: ks-aurora-drift-rev 17s ease-in-out infinite; }
+
+/* Deriva das fitas do hero (variante "ribbon"), com os tempos e deslocamentos medidos ao vivo em www.fonio.ai/pt-br:
+   drift-1 14 s até translate(24px, 32px); drift-2 18 s até translate(-28px, -24px); ambos ease-in-out infinitos. */
+@keyframes ks-drift-1 {
+  0%, 100% { transform: translate(0); }
+  50% { transform: translate(24px, 32px); }
+}
+@keyframes ks-drift-2 {
+  0%, 100% { transform: translate(0); }
+  50% { transform: translate(-28px, -24px); }
+}
+.ks-drift-1 { animation: ks-drift-1 14s ease-in-out infinite; }
+.ks-drift-2 { animation: ks-drift-2 18s ease-in-out infinite; }
+
+@keyframes ks-orb-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.025); }
+}
+@keyframes ks-orb-spin { to { transform: rotate(360deg); } }
+.ks-orb { animation: ks-orb-float 6s ease-in-out infinite; }
+.ks-orb-spin { animation: ks-orb-spin 18s linear infinite; }
+.ks-orb-spin-rev { animation: ks-orb-spin 26s linear infinite reverse; }
+
+@keyframes ks-beam {
+  0% { left: -30%; }
+  100% { left: 100%; }
+}
+.ks-beam { animation: ks-beam 3.2s ease-in-out infinite; }
+
+@keyframes ks-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.ks-marquee { animation: ks-marquee 38s linear infinite; }
+.ks-marquee-slow { animation: ks-marquee 60s linear infinite; }
+.ks-marquee-rev { animation: ks-marquee 60s linear infinite reverse; }
+.ks-marquee-pause:hover .ks-marquee,
+.ks-marquee-pause:hover .ks-marquee-slow,
+.ks-marquee-pause:hover .ks-marquee-rev { animation-play-state: paused; }
+
+@keyframes ks-orbit { to { transform: rotate(360deg); } }
+@keyframes ks-orbit-counter { to { transform: rotate(-360deg); } }
+.ks-orbit { animation: ks-orbit 60s linear infinite; }
+.ks-orbit-rev { animation: ks-orbit 80s linear infinite reverse; }
+.ks-orbit-counter { animation: ks-orbit-counter 60s linear infinite; }
+.ks-orbit-counter-rev { animation: ks-orbit-counter 80s linear infinite reverse; }
+
+@keyframes ks-scan {
+  0% { top: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.ks-scan { animation: ks-scan 2.6s ease-in-out infinite; }
+
+@keyframes ks-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.ks-caret { animation: ks-caret 1s step-end infinite; }
+
+@keyframes ks-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ks-fade-up { animation: ks-fade-up .45s ease-out both; }
+
+@keyframes ks-pop {
+  0% { opacity: 0; transform: scale(.92) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.ks-pop { animation: ks-pop .35s cubic-bezier(.2,.8,.2,1) both; }
+
+@keyframes ks-typing-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+.ks-typing-dot { animation: ks-typing-dot 1.2s ease-in-out infinite; }
+
+@keyframes ks-word-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.ks-word-shimmer {
+  background-image: linear-gradient(90deg, #585DFE 0%, #585DFE 40%, rgba(88,93,254,.25) 60%, #585DFE 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ks-word-shimmer 3s linear infinite;
+}
+
+@keyframes ks-swoosh {
+  0%, 100% { transform: translate3d(0,0,0) rotate(-8deg); }
+  50% { transform: translate3d(24px,-12px,0) rotate(-2deg); }
+}
+.ks-swoosh { animation: ks-swoosh 9s ease-in-out infinite; }
+
+.ks-dot-grid {
+  background-image: radial-gradient(rgba(15, 15, 22, .12) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+.ks-wa-doodle {
+  background-color: #efeae2;
+  background-image:
+    radial-gradient(rgba(0,0,0,.035) 1.5px, transparent 1.6px),
+    radial-gradient(rgba(0,0,0,.03) 1px, transparent 1.2px);
+  background-size: 22px 22px, 13px 13px;
+  background-position: 0 0, 7px 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ks-aurora-a, .ks-aurora-b, .ks-drift-1, .ks-drift-2, .ks-orb, .ks-orb-spin, .ks-orb-spin-rev, .ks-beam, .ks-marquee, .ks-marquee-slow, .ks-marquee-rev,
+  .ks-orbit, .ks-orbit-rev, .ks-orbit-counter, .ks-orbit-counter-rev, .ks-swoosh, .ks-word-shimmer { animation: none; }
+}
+
+.ks-wa-doodle-light {
+  background-color: #f8f8f8;
+  background-image:
+    radial-gradient(rgba(0,0,0,.045) 1.4px, transparent 1.5px),
+    radial-gradient(rgba(0,0,0,.03) 1px, transparent 1.1px);
+  background-size: 24px 24px, 15px 15px;
+  background-position: 0 0, 8px 10px;
+}

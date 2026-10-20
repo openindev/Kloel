@@ -1,0 +1,18 @@
+import type { FastifyInstance } from 'fastify';
+
+const page = String.raw`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kloel · Assinatura</title><link rel="stylesheet" href="/ops.css"><main><header><span class="brand">Kloel AI</span></header><h1>Sua assinatura</h1><p>O estado abaixo é confirmado pelo servidor com o Stripe.</p><section><output id="status" role="status">Consultando assinatura…</output><div id="subscriptions"></div><button id="refresh">Atualizar</button><button id="portal" hidden>Gerenciar no Stripe</button><p><a href="/ops">Voltar ao painel local</a></p></section></main><script src="/billing.js" defer></script></html>`;
+const script = String.raw`
+const status=document.querySelector('#status'),list=document.querySelector('#subscriptions'),portal=document.querySelector('#portal');
+const checkoutSessionId=new URLSearchParams(location.search).get('session_id');
+async function api(path,options={}){const response=await fetch('/api/v1/billing/'+path,{credentials:'same-origin',...options});const data=await response.json();if(!response.ok)throw new Error(data.error?.message||'Não foi possível consultar a assinatura.');return data;}
+async function reconcile(){if(!checkoutSessionId||!/^cs_(test_|live_)?[A-Za-z0-9]+$/.test(checkoutSessionId))return;await api('reconcile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({checkoutSessionId})});}
+async function refresh(){try{const data=await api('status');list.replaceChildren();for(const subscription of data.subscriptions){const row=document.createElement('p');let label='Assinatura '+subscription.providerSubscriptionId+': '+subscription.status;if(subscription.cancelAt){label+=' · Cancelamento agendado para '+new Date(subscription.cancelAt*1000).toLocaleString('pt-BR');}else if(subscription.cancelAtPeriodEnd){label+=' · Cancelamento agendado para o fim do período.';}row.textContent=label;list.append(row);}portal.hidden=!data.account?.customerId;status.textContent=data.subscriptions.length?'Estado de cobrança confirmado pelo servidor.':data.account?'Conta de cobrança identificada. Aguardando confirmação da assinatura.':'Nenhuma assinatura confirmada. Se você acabou de concluir o checkout, aguarde a confirmação.';return Boolean(data.account?.customerId)&&data.subscriptions.length>0;}catch(error){status.textContent=error.message;return false;}}
+document.querySelector('#refresh').onclick=async()=>{try{await reconcile();await refresh();}catch(error){status.textContent=error.message;}};
+portal.onclick=async()=>{portal.disabled=true;try{const data=await api('portal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idempotencyKey:crypto.randomUUID()})});const url=new URL(data.url);if(url.protocol!=='https:'||url.hostname!=='billing.stripe.com')throw new Error('Endereço de cobrança inválido.');location.assign(url.href);}catch(error){status.textContent=error.message;portal.disabled=false;}};
+(async()=>{try{await reconcile();}catch(error){status.textContent=error.message;}for(let attempt=0;attempt<10;attempt++){if(await refresh())break;await new Promise(resolve=>setTimeout(resolve,3000));}})();
+`;
+
+export async function registerBillingUI(app: FastifyInstance) {
+  app.get('/billing', async (_req, reply) => reply.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'").type('text/html').send(page));
+  app.get('/billing.js', async (_req, reply) => reply.type('application/javascript').send(script));
+}

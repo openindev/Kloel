@@ -1,0 +1,24 @@
+{
+  "dispatchRule": {
+    "name": "Kloel DIDlogic Brazil phone pilot",
+    "trunkIds": [
+      "ST_zKbdTNB8tarJ"
+    ],
+    "rule": {
+      "dispatchRuleIndividual": {
+        "roomPrefix": "kloel-br-"
+      }
+    },
+    "hidePhoneNumber": false,
+    "roomConfig": {
+      "emptyTimeout": 60,
+      "departureTimeout": 20,
+      "maxParticipants": 2,
+      "agents": [
+        {
+          "agentName": "kloel-phone-pilot"
+        }
+      ]
+    }
+  }
+}
