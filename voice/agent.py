@@ -499,7 +499,7 @@ async def entrypoint(ctx: agents.JobContext):
     wa_status, call, instructions = await asyncio.gather(
         asyncio.to_thread(engine_client.safe, 'POST', 'whatsapp/status', {'phone': phone}) if phone else asyncio.sleep(0, None),
         asyncio.to_thread(engine_client.safe, 'POST', 'calls', {'room': ctx.job.room.name, 'direction': direction, **({'externalContact': phone} if phone else {})}),
-        asyncio.to_thread(engine_client.agent))
+        asyncio.to_thread(engine_client.agent, 0))
     if (call or {}).get('blocked'):
         log.info('caller_blocked_hangup')
         try: ctx.shutdown(reason='contact_blocked')

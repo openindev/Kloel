@@ -128,6 +128,13 @@ export function createAgentJournal(storage: StoragePort, input: ExpectedContext,
 }
 export function createAgentCommands(context: EngineContext, journal?: ReturnType<typeof createAgentJournal>) {
   async function read(agentId: string): Promise<Agent> { if (!id(agentId)) invalid(); context.assertCurrent(); const raw = await context.request(`/agents/${agentId}/editor-state`); context.assertCurrent(); const v = parseEditorView(raw, context.tenantId, agentId); return projectAgent(v.agent, v, context.generation) }
+  /** Re-read the fence when this tab's copy was projected in another session generation or never received one. The caller's fields stay; only revision, version and runtime tools come from the server. */
+  async function editorFence(base: Agent): Promise<Agent> {
+    if (base.cascaEditor?.generation === context.generation) return base
+    const fresh = await read(base.id)
+    if (fresh.orgId !== context.tenantId || !fresh.cascaEditor || fresh.cascaEditor.generation !== context.generation) invalid('Não foi possível confirmar o assistente. Atualize a página antes de salvar.')
+    return { ...base, cascaEditor: fresh.cascaEditor, runtimeStatus: fresh.runtimeStatus }
+  }
   async function recover(attempt: AgentAttempt): Promise<Agent> { context.assertCurrent(); const op = parseEditorOperation(await context.request(`/agents/editor-state/operations/${attempt.key}`), context.tenantId, attempt); context.assertCurrent(); try { const a = await read(op.agentId); journal?.resolve(attempt, context.assertCurrent); return a } catch (error) { context.assertCurrent(); if (error instanceof EngineError && error.status === 404) { journal?.resolve(attempt, context.assertCurrent); throw new EngineError(404, 'agent_deleted_after_write', `O salvamento foi confirmado pela referência ${attempt.key}, mas o assistente foi excluído depois.`) } throw error } }
   async function write(attempt: AgentAttempt, path: string, body: unknown, method: 'PUT' | 'POST'): Promise<Agent> {
     context.assertCurrent(); const active = journal?.read(); if (active) return recover(active)
@@ -137,7 +144,18 @@ export function createAgentCommands(context: EngineContext, journal?: ReturnType
   }
   return { read, recover,
     async create(input: Agent) { assertNewBeforeConfiguration(input); assertExecutableNewAgentSettings(input); assertExecutableResourceChanges({ transfers: [], emails: [], whatsapps: [] }, input); if (input.orgId !== context.tenantId) invalid(); const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.create', expectedRevision: 0 }, fields: AgentFields = { name: input.name, prompt: input.prompt, initialMessage: input.greeting, language: input.language, voice: providerVoice(input.voiceId), status: 'draft', settings: { temperature: input.technical.temperature, maxResponseTokens: 1024, timezone: input.businessHours.timezone, recordingEnabled: input.technical.recordAudio, humanHandoffEnabled: true }, tools: [...(input.knowledgeBaseEnabled ? ['search_knowledge' as const] : []), ...(input.contactsEnabled ? ['lookup_contact' as const] : []), ...(input.webSearch.enabled ? ['search_web' as const] : [])], rules: compileAgentRules(input) }; agentPayload(fields); return write(attempt, '/agents/editor-state', { expectedTenantId: context.tenantId, idempotencyKey: attempt.key, agent: fields, state: editorState(input as unknown as Record<string, unknown>) }, 'POST') },
-    async update(base: Agent, patch: Partial<Agent>) { assertExecutableResourceChanges(base, patch); assertExecutableAgentSettings(base, patch); const meta = base.cascaEditor; if (base.orgId !== context.tenantId || !meta || meta.generation !== context.generation) invalid('Atualize o assistente antes de salvar.'); const next = { ...base, ...patch }, runtime = runtimePatch(base, next); delete (next as Partial<Agent>).runtimeStatus; if (Object.keys(runtime).length) agentPayload(runtime); const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.update', agentId: base.id, expectedRevision: meta.revision }; return write(attempt, `/agents/${base.id}/editor-state`, { expectedTenantId: context.tenantId, expectedRevision: meta.revision, expectedAgentVersion: meta.agentVersion, idempotencyKey: attempt.key, agent: runtime, state: editorState(next as unknown as Record<string, unknown>) }, 'PUT') },
+    async update(base: Agent, patch: Partial<Agent>) {
+      assertExecutableResourceChanges(base, patch); assertExecutableAgentSettings(base, patch)
+      // The editor fence (cascaEditor) is not stored. It is stamped only when this tab projects GET /editor-state.
+      // A dirty draft keeps the first object, so a missing or older generation used to throw before any request.
+      if (base.orgId !== context.tenantId) invalid('A organização da sessão mudou. Abra o assistente de novo antes de salvar.')
+      const current = await editorFence(base)
+      const meta = current.cascaEditor!
+      const next = { ...current, ...patch }, runtime = runtimePatch(current, next); delete (next as Partial<Agent>).runtimeStatus
+      if (Object.keys(runtime).length) agentPayload(runtime)
+      const attempt: AgentAttempt = { key: crypto.randomUUID(), kind: 'agent.editor.update', agentId: base.id, expectedRevision: meta.revision }
+      return write(attempt, `/agents/${base.id}/editor-state`, { expectedTenantId: context.tenantId, expectedRevision: meta.revision, expectedAgentVersion: meta.agentVersion, idempotencyKey: attempt.key, agent: runtime, state: editorState(next as unknown as Record<string, unknown>) }, 'PUT')
+    },
     async remove(agentId: string) { if (!id(agentId)) invalid(); context.assertCurrent(); try { await context.request(`/agents/${agentId}`, { method: 'DELETE' }); context.assertCurrent() } catch (error) { context.assertCurrent(); try { await read(agentId) } catch (readError) { context.assertCurrent(); if (readError instanceof EngineError && readError.status === 404) return } throw error } },
   }
 }
@@ -147,12 +165,18 @@ export function createManagedAgentCommands(context: EngineContext, journal: Retu
   return { ...commands, async update(base: Agent, patch: Partial<Agent>) {
     assertExecutableResourceChanges(base, patch)
     assertExecutableAgentSettings(base, patch)
-    const saveBefore = await prepare(base, { ...base, ...patch })
+    if (base.orgId !== context.tenantId) invalid('A organização da sessão mudou. Abra o assistente de novo antes de salvar.')
+    // Greeting / inbound webhook checks use the same generation stamp. Refresh it before they can refuse the save.
+    const current = !base.cascaEditor || base.cascaEditor.generation !== context.generation ? await commands.read(base.id).then(fresh => {
+      if (fresh.orgId !== context.tenantId || !fresh.cascaEditor || fresh.cascaEditor.generation !== context.generation) invalid('Não foi possível confirmar o assistente. Atualize a página antes de salvar.')
+      return { ...base, cascaEditor: fresh.cascaEditor, runtimeStatus: fresh.runtimeStatus, engineBefore: base.engineBefore ?? fresh.engineBefore }
+    }) : base
+    const saveBefore = await prepare(current, { ...current, ...patch })
     if (saveBefore) {
       const pending = journal.read()
       if (pending) { await commands.recover(pending); throw Error('O salvamento anterior foi confirmado. Atualize o assistente antes de aplicar novas alterações.') }
     }
-    const saved = await commands.update(base, patch)
+    const saved = await commands.update(current, patch)
     if (saveBefore) {
       try { await saveBefore() }
       catch (error) { context.assertCurrent(); throw Error(`O assistente foi salvo, mas não foi possível confirmar toda a configuração inicial. Atualize para conferir. ${error instanceof Error ? error.message : ''}`) }
